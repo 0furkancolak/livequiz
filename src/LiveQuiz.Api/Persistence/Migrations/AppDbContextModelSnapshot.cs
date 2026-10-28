@@ -174,6 +174,101 @@ namespace LiveQuiz.Api.Persistence.Migrations
                     b.ToTable("Quizzes");
                 });
 
+            modelBuilder.Entity("LiveQuiz.Api.Persistence.SessionPlayerResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CorrectAnswers")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Nickname")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Rank")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SessionRecordId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionRecordId");
+
+                    b.ToTable("SessionPlayerResult");
+                });
+
+            modelBuilder.Entity("LiveQuiz.Api.Persistence.SessionQuestionStat", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CorrectIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Index")
+                        .HasColumnType("integer");
+
+                    b.PrimitiveCollection<int[]>("OptionCounts")
+                        .IsRequired()
+                        .HasColumnType("integer[]");
+
+                    b.Property<Guid>("SessionRecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionRecordId");
+
+                    b.ToTable("SessionQuestionStat");
+                });
+
+            modelBuilder.Entity("LiveQuiz.Api.Persistence.SessionRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("FinishedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("PlayerCount")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("QuizId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("QuizTitle")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId", "FinishedAtUtc");
+
+                    b.ToTable("SessionRecords");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -335,6 +430,24 @@ namespace LiveQuiz.Api.Persistence.Migrations
                     b.Navigation("Owner");
                 });
 
+            modelBuilder.Entity("LiveQuiz.Api.Persistence.SessionPlayerResult", b =>
+                {
+                    b.HasOne("LiveQuiz.Api.Persistence.SessionRecord", null)
+                        .WithMany("Players")
+                        .HasForeignKey("SessionRecordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LiveQuiz.Api.Persistence.SessionQuestionStat", b =>
+                {
+                    b.HasOne("LiveQuiz.Api.Persistence.SessionRecord", null)
+                        .WithMany("Questions")
+                        .HasForeignKey("SessionRecordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -393,6 +506,13 @@ namespace LiveQuiz.Api.Persistence.Migrations
 
             modelBuilder.Entity("LiveQuiz.Api.Persistence.Quiz", b =>
                 {
+                    b.Navigation("Questions");
+                });
+
+            modelBuilder.Entity("LiveQuiz.Api.Persistence.SessionRecord", b =>
+                {
+                    b.Navigation("Players");
+
                     b.Navigation("Questions");
                 });
 #pragma warning restore 612, 618

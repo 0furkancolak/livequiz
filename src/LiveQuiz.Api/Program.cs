@@ -22,6 +22,7 @@ if (builder.Configuration.GetValue("Database:MigrateOnStartup", builder.Environm
 builder.AddOrleansSilo();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<LiveQuiz.Grains.Sessions.ISessionNotifier, SignalRSessionNotifier>();
+builder.Services.AddSingleton<LiveQuiz.Grains.Sessions.ISessionArchive, EfSessionArchive>();
 
 var app = builder.Build();
 

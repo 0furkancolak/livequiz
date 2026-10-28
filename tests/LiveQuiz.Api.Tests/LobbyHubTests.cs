@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net.Http.Json;
+using LiveQuiz.Contracts.Game;
 using LiveQuiz.Contracts.Sessions;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SignalR;
@@ -8,22 +9,27 @@ using Microsoft.AspNetCore.SignalR.Client;
 namespace LiveQuiz.Api.Tests;
 
 [Collection(ApiCollection.Name)]
-public sealed class LobbyHubTests(ApiFactory factory)
+public sealed partial class LobbyHubTests(ApiFactory factory)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private sealed class Probe : IAsyncDisposable
+    internal sealed class Probe : IAsyncDisposable
     {
         public ConcurrentQueue<PlayerInfo> Joined { get; } = new();
         public ConcurrentQueue<(Guid Player, bool Connected)> Connections { get; } = new();
         public ConcurrentQueue<int> Counts { get; } = new();
         public int Cancelled;
+        public ConcurrentQueue<QuestionForPlayer> Questions { get; } = new();
+        public ConcurrentQueue<QuestionResults> Results { get; } = new();
+        public ConcurrentQueue<PlayerQuestionResult> MyResults { get; } = new();
+        public ConcurrentQueue<FinalResults> Finals { get; } = new();
+        public ConcurrentQueue<int> Answered { get; } = new();
         public required HubConnection Connection { get; init; }
 
         public ValueTask DisposeAsync() => Connection.DisposeAsync();
     }
 
-    private async Task<Probe> ConnectAsync(string? cookie = null)
+    internal async Task<Probe> ConnectAsync(string? cookie = null)
     {
         var connection = new HubConnectionBuilder()
             .WithUrl(new Uri(factory.Server.BaseAddress, QuizHubNames.Path), options =>
@@ -40,11 +46,16 @@ public sealed class LobbyHubTests(ApiFactory factory)
         connection.On<Guid, bool>(nameof(IQuizClient.PlayerConnectionChanged), (id, c) => probe.Connections.Enqueue((id, c)));
         connection.On<int>(nameof(IQuizClient.LobbyCount), c => probe.Counts.Enqueue(c));
         connection.On(nameof(IQuizClient.SessionCancelled), () => Interlocked.Increment(ref probe.Cancelled));
+        connection.On<QuestionForPlayer>(nameof(IQuizClient.QuestionStarted), q => probe.Questions.Enqueue(q));
+        connection.On<int, int>(nameof(IQuizClient.AnswerCount), (a, _) => probe.Answered.Enqueue(a));
+        connection.On<QuestionResults>(nameof(IQuizClient.QuestionEnded), r => probe.Results.Enqueue(r));
+        connection.On<PlayerQuestionResult>(nameof(IQuizClient.PlayerResult), r => probe.MyResults.Enqueue(r));
+        connection.On<FinalResults>(nameof(IQuizClient.SessionFinished), f => probe.Finals.Enqueue(f));
         await connection.StartAsync(Ct);
         return probe;
     }
 
-    private static async Task<T> Eventually<T>(Func<T?> read) where T : struct
+    internal static async Task<T> Eventually<T>(Func<T?> read) where T : struct
     {
         var deadline = DateTime.UtcNow.AddSeconds(10);
         while (DateTime.UtcNow < deadline)
@@ -56,7 +67,7 @@ public sealed class LobbyHubTests(ApiFactory factory)
         throw new TimeoutException("Expected hub event did not arrive.");
     }
 
-    private async Task<JoinSessionResponse> JoinAsync(string pin, string nickname)
+    internal async Task<JoinSessionResponse> JoinAsync(string pin, string nickname)
     {
         using var http = factory.CreateClient();
         var response = await http.PostAsJsonAsync("/api/sessions/join", new JoinSessionRequest(pin, nickname), Ct);
