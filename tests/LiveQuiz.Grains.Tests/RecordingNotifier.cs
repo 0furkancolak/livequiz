@@ -50,12 +50,39 @@ public sealed class RecordingArchive : ISessionArchive
     public static RecordingArchive Instance { get; } = new();
 
     private readonly ConcurrentQueue<SessionSummary> _saved = new();
+    private readonly ConcurrentDictionary<Guid, int> _attempts = new();
+    private readonly Dictionary<Guid, int> _failuresLeft = [];
 
     public IReadOnlyList<SessionSummary> For(Guid sessionId) => _saved.Where(s => s.SessionId == sessionId).ToList();
 
+    /// <summary>Number of times <see cref="Save"/> was called for the session, failed calls included.</summary>
+    public int Attempts(Guid sessionId) => _attempts.GetValueOrDefault(sessionId);
+
+    /// <summary>Makes the next <paramref name="times"/> saves of this session throw.</summary>
+    public void FailNext(Guid sessionId, int times)
+    {
+        lock (_failuresLeft)
+            _failuresLeft[sessionId] = times;
+    }
+
     public Task Save(SessionSummary summary)
     {
+        _attempts.AddOrUpdate(summary.SessionId, 1, (_, n) => n + 1);
+        if (TakeFailure(summary.SessionId))
+            throw new InvalidOperationException("The archive is down (test).");
+
         _saved.Enqueue(summary);
         return Task.CompletedTask;
+    }
+
+    private bool TakeFailure(Guid sessionId)
+    {
+        lock (_failuresLeft)
+        {
+            if (_failuresLeft.GetValueOrDefault(sessionId) <= 0)
+                return false;
+            _failuresLeft[sessionId]--;
+            return true;
+        }
     }
 }

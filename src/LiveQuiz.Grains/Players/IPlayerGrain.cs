@@ -8,10 +8,6 @@ public interface IPlayerGrain : IGrainWithGuidCompoundKey
     /// <summary>Constant-time check of a reconnect token against the stored hash.</summary>
     Task<bool> Verify(string reconnectToken);
 
-    Task SetConnected(bool connected);
-
-    Task<bool> IsConnected();
-
     /// <summary>Stores the outcome of one question (called by the session when the question closes).</summary>
     Task RecordAnswer(int questionIndex, int optionIndex, int points, int elapsedMs);
 

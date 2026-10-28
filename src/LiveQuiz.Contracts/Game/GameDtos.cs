@@ -7,7 +7,10 @@ public enum AnswerStatus
     TooLate,
     WrongQuestion,
     InvalidOption,
-    NotInGame
+    NotInGame,
+
+    /// <summary>The connection sent answers faster than the per-connection limit allows.</summary>
+    RateLimited
 }
 
 /// <summary>

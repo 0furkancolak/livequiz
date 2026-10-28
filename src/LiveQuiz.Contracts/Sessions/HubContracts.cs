@@ -29,10 +29,10 @@ public interface IQuizClient
 public interface IQuizHub
 {
     /// <summary>Host only (Identity cookie, must own the session). Joins the host group and returns the lobby.</summary>
-    Task<HostLobbySnapshot> JoinAsHost(Guid sessionId);
+    Task<HostSnapshot> JoinAsHost(Guid sessionId);
 
     /// <summary>Player. Proves identity with the reconnect token and joins the players group.</summary>
-    Task<PlayerLobbySnapshot> JoinAsPlayer(Guid sessionId, Guid playerId, string reconnectToken);
+    Task<PlayerGameState> JoinAsPlayer(Guid sessionId, Guid playerId, string reconnectToken);
 
     /// <summary>Host only. Lobby to the first question; needs at least one player.</summary>
     Task StartGame(Guid sessionId);

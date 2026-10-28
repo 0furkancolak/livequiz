@@ -33,6 +33,9 @@ public sealed class ClusterFixture : IAsyncLifetime
                     services.Configure<LobbyOptions>(o => {
                         o.CountInterval = TimeSpan.FromSeconds(1);
                         o.AnswerGrace = TimeSpan.FromMilliseconds(250);
+                        o.HostAbsenceLimit = TimeSpan.FromMinutes(10);
+                        o.ArchiveAttempts = 3;
+                        o.ArchiveRetryDelay = TimeSpan.FromSeconds(1);
                     });
                 });
     }

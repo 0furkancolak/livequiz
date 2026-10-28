@@ -137,7 +137,7 @@ public class SessionGrainTests(ClusterFixture fixture)
         var (id, grain, _) = await OpenSession();
         var joined = await grain.Join("Sam");
 
-        await grain.SetPlayerConnected(joined.PlayerId, true);
+        await grain.SetPlayerConnected(joined.PlayerId, "conn-1", true);
 
         Assert.True((await grain.GetInfo()).Players.Single().Connected);
         Assert.Contains(RecordingNotifier.Instance.For(id),

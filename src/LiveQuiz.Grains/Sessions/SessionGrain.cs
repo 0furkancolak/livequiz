@@ -18,7 +18,9 @@ public sealed class SessionState
     [Id(4)] public string QuizTitle { get; set; } = string.Empty;
     [Id(5)] public Dictionary<Guid, LobbyPlayer> Players { get; set; } = [];
     [Id(6)] public QuestionSnapshot[] Questions { get; set; } = [];
-    [Id(7)] public int CurrentIndex { get; set; } = -1;
+    // Orleans does not write a field that equals the type default, so these are 0-based with 0 meaning "none yet":
+    // an initializer such as -1 would silently come back after a restart.
+    [Id(7)] public int CurrentIndex { get; set; }
     [Id(8)] public DateTimeOffset QuestionStartedAtUtc { get; set; }
     [Id(9)] public DateTimeOffset StartedAtUtc { get; set; }
     [Id(10)] public List<QuestionStat> Stats { get; set; } = [];
@@ -31,6 +33,11 @@ public sealed class LobbyPlayer
     [Id(1)] public bool Connected { get; set; }
     [Id(2)] public int Points { get; set; }
     [Id(3)] public int CorrectAnswers { get; set; }
+
+    // The player's latest recorded answer, kept so a result screen can be rebuilt after a reconnect or restart.
+    [Id(4)] public int LastQuestionNumber { get; set; } // 1-based; 0 = never answered
+    [Id(5)] public int LastOption { get; set; }
+    [Id(6)] public int LastPoints { get; set; }
 }
 
 [GenerateSerializer]
@@ -58,7 +65,13 @@ public sealed class SessionGrain : Grain, ISessionGrain
     private readonly Dictionary<Guid, (int Option, TimeSpan Elapsed)> _answers = [];
     private readonly CoalescedPush _lobbyCount;
     private readonly CoalescedPush _answerCount;
+    // Connections are bound to this activation: after a restart every client has to rejoin anyway.
+    private readonly HashSet<string> _hostConnections = [];
+    private readonly Dictionary<Guid, HashSet<string>> _playerConnections = [];
     private IGrainTimer? _closeTimer;
+    private IGrainTimer? _abandonTimer;
+    private List<(Guid PlayerId, Standing Standing)>? _ranking;
+    private Dictionary<Guid, Standing>? _standingById;
 
     public SessionGrain(
         [PersistentState("session")] IPersistentState<SessionState> state,
@@ -82,15 +95,27 @@ public sealed class SessionGrain : Grain, ISessionGrain
 
     private SessionState S => _state.State;
 
-    public override Task OnActivateAsync(CancellationToken cancellationToken)
+    public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         foreach (var player in S.Players.Values)
+        {
             _nicknameKeys.Add(NicknamePolicy.UniquenessKey(player.Nickname));
+            player.Connected = false; // nobody is connected to a fresh activation; clients rejoin and set it again
+        }
 
-        // After a silo restart mid-question the open answers are gone but the question can still end on time.
+        if (!S.Status.IsLive())
+            return;
+
+        ArmAbandonTimer();
+
+        // The answers of the open question lived in memory only (ADR 0012), so after a restart the question starts
+        // over with its full time and players answer again (ADR 0013).
         if (S.Status == SessionStatus.QuestionActive)
-            ArmCloseTimer();
-        return Task.CompletedTask;
+        {
+            _logger.LogWarning("Session {SessionId} was reactivated mid-question; restarting question {Index}",
+                this.GetPrimaryKey(), S.CurrentIndex);
+            await BeginQuestion(S.CurrentIndex);
+        }
     }
 
     public async Task<string> Open(string ownerId, Guid quizId, string quizTitle, QuestionSnapshot[] questions)
@@ -114,6 +139,7 @@ public sealed class SessionGrain : Grain, ISessionGrain
             S.QuizTitle = quizTitle;
             S.Questions = questions;
             await _state.WriteStateAsync();
+            ArmAbandonTimer();
             return pin;
         }
 
@@ -158,14 +184,46 @@ public sealed class SessionGrain : Grain, ISessionGrain
         return new JoinResult(JoinStatus.Joined, playerId, name, token);
     }
 
-    public async Task SetPlayerConnected(Guid playerId, bool connected)
+    public async Task SetPlayerConnected(Guid playerId, string connectionId, bool connected)
     {
-        if (!S.Status.IsLive() || !S.Players.TryGetValue(playerId, out var player) || player.Connected == connected)
+        if (!S.Status.IsLive() || !S.Players.TryGetValue(playerId, out var player))
             return;
 
-        player.Connected = connected;
-        await _state.WriteStateAsync();
-        await Notify(() => _notifier.PlayerConnectionChanged(this.GetPrimaryKey(), playerId, connected));
+        if (connected)
+        {
+            if (!_playerConnections.TryGetValue(playerId, out var set))
+                _playerConnections[playerId] = set = [];
+            set.Add(connectionId);
+        }
+        else if (_playerConnections.TryGetValue(playerId, out var set))
+        {
+            set.Remove(connectionId);
+            if (set.Count == 0)
+                _playerConnections.Remove(playerId);
+        }
+
+        var anyOpen = _playerConnections.ContainsKey(playerId);
+        if (player.Connected == anyOpen)
+            return;
+
+        // Not persisted: the flag is reset on every activation, so a write would only cost I/O.
+        player.Connected = anyOpen;
+        await Notify(() => _notifier.PlayerConnectionChanged(this.GetPrimaryKey(), playerId, anyOpen));
+    }
+
+    public Task SetHostConnected(string connectionId, bool connected)
+    {
+        if (connected)
+        {
+            _hostConnections.Add(connectionId);
+            _abandonTimer?.Dispose();
+            _abandonTimer = null;
+        }
+        else if (_hostConnections.Remove(connectionId) && _hostConnections.Count == 0 && S.Status.IsLive())
+        {
+            ArmAbandonTimer();
+        }
+        return Task.CompletedTask;
     }
 
     public async Task<GameCommandResult> Start()
@@ -240,7 +298,89 @@ public sealed class SessionGrain : Grain, ISessionGrain
             .Select(p => new PlayerSnapshot(p.Key, p.Value.Nickname, p.Value.Connected))
             .ToArray();
         return Task.FromResult(new SessionInfo(
-            S.Status, S.Pin, S.OwnerId, S.QuizId, S.QuizTitle, players, S.CurrentIndex, S.Questions.Length));
+            S.Status, S.Pin, S.OwnerId, S.QuizId, S.QuizTitle, players, S.Status == SessionStatus.Lobby ? -1 : S.CurrentIndex, S.Questions.Length));
+    }
+
+    public Task<SessionView> GetHostView() => Task.FromResult(BuildView(null));
+
+    public Task<SessionView?> GetPlayerView(Guid playerId) =>
+        Task.FromResult(S.Players.ContainsKey(playerId) ? BuildView(playerId) : null);
+
+    private SessionView BuildView(Guid? playerId)
+    {
+        S.Players.TryGetValue(playerId ?? Guid.Empty, out var me);
+
+        QuestionView? question = null;
+        ResultsView? results = null;
+        PlayerResultView? myResult = null;
+        StandingView[]? final = null;
+        int? chosen = null;
+
+        var inQuestion = S.Status is SessionStatus.QuestionActive or SessionStatus.QuestionResults;
+        if (inQuestion)
+        {
+            var q = S.Questions[S.CurrentIndex];
+            var remaining = S.Status == SessionStatus.QuestionActive
+                ? (S.QuestionStartedAtUtc + TimeSpan.FromSeconds(q.TimeLimitSeconds) - _time.GetUtcNow()).TotalMilliseconds
+                : 0;
+            question = new QuestionView(S.CurrentIndex, S.Questions.Length, q.Text, q.Options, q.TimeLimitSeconds, (int)Math.Max(0, remaining));
+
+            if (S.Status == SessionStatus.QuestionActive && playerId is { } id && _answers.TryGetValue(id, out var answer))
+                chosen = answer.Option;
+        }
+
+        if (S.Status is SessionStatus.QuestionResults or SessionStatus.Finished)
+        {
+            var ranking = GetRanking();
+            if (S.Status == SessionStatus.QuestionResults)
+            {
+                var counts = S.Stats.LastOrDefault(st => st.Index == S.CurrentIndex)?.OptionCounts ?? new int[S.Questions[S.CurrentIndex].Options.Length];
+                results = new ResultsView(
+                    S.CurrentIndex, S.Questions.Length, S.Questions[S.CurrentIndex].CorrectIndex, counts,
+                    ranking.Take(TopForResults).Select(r => ToView(r.Standing)).ToArray(), S.CurrentIndex + 1 >= S.Questions.Length);
+            }
+            else
+            {
+                final = ranking.Take(TopForFinal).Select(r => ToView(r.Standing)).ToArray();
+            }
+
+            if (me is not null && _standingById!.TryGetValue(playerId!.Value, out var standing))
+            {
+                var answered = me.LastQuestionNumber == S.CurrentIndex + 1;
+                myResult = new PlayerResultView(
+                    S.CurrentIndex, answered, answered ? me.LastOption : null,
+                    answered && me.LastOption == S.Questions[S.CurrentIndex].CorrectIndex,
+                    answered ? me.LastPoints : 0, standing.Points, standing.Rank, ranking.Count);
+            }
+        }
+
+        var players = playerId is null
+            ? S.Players.Select(p => new PlayerSnapshot(p.Key, p.Value.Nickname, p.Value.Connected)).ToArray()
+            : [];
+        return new SessionView(
+            S.Status, S.Pin, S.OwnerId, S.QuizTitle, me?.Nickname ?? string.Empty, S.Players.Count, players,
+            question, _answers.Count, chosen, results, myResult, final);
+    }
+
+    private static StandingView ToView(Standing s) => new(s.Rank, s.Nickname, s.Points);
+
+    private void ArmAbandonTimer()
+    {
+        _abandonTimer?.Dispose();
+        // Timers do not keep an activation alive, so hold it until the timer has had its chance to fire.
+        this.DelayDeactivation(_options.HostAbsenceLimit + TimeSpan.FromMinutes(1));
+        _abandonTimer = this.RegisterGrainTimer(
+            AbandonIfHostAbsentAsync,
+            new GrainTimerCreationOptions(_options.HostAbsenceLimit, Timeout.InfiniteTimeSpan));
+    }
+
+    private async Task AbandonIfHostAbsentAsync()
+    {
+        if (_hostConnections.Count > 0 || !S.Status.IsLive())
+            return;
+
+        _logger.LogInformation("Cancelling session {SessionId}: the host has been away for {Limit}", this.GetPrimaryKey(), _options.HostAbsenceLimit);
+        await Cancel();
     }
 
     private async Task BeginQuestion(int index)
@@ -249,6 +389,7 @@ public sealed class SessionGrain : Grain, ISessionGrain
         S.Status = SessionStatus.QuestionActive;
         S.QuestionStartedAtUtc = _time.GetUtcNow();
         _answers.Clear();
+        _ranking = null;
         await _state.WriteStateAsync();
         ArmCloseTimer();
 
@@ -270,6 +411,8 @@ public sealed class SessionGrain : Grain, ISessionGrain
 
     private void DisarmTimers()
     {
+        _abandonTimer?.Dispose();
+        _abandonTimer = null;
         _closeTimer?.Dispose();
         _closeTimer = null;
         _lobbyCount.Cancel();
@@ -297,11 +440,15 @@ public sealed class SessionGrain : Grain, ISessionGrain
             outcomes[playerId] = (answer.Option, points, correct, answer.Elapsed);
 
             var player = S.Players[playerId];
+            player.LastQuestionNumber = index + 1;
+            player.LastOption = answer.Option;
+            player.LastPoints = points;
             player.Points += points;
             if (correct)
                 player.CorrectAnswers++;
         }
         _answers.Clear();
+        _ranking = null;
 
         S.Stats.Add(new QuestionStat { Index = index, OptionCounts = counts });
         S.Status = SessionStatus.QuestionResults;
@@ -309,7 +456,7 @@ public sealed class SessionGrain : Grain, ISessionGrain
 
         await Task.WhenAll(outcomes.Select(o => RecordForPlayer(sessionId, o.Key, index, o.Value)));
 
-        var standings = Rank();
+        var standings = GetRanking();
         var isLast = index + 1 >= S.Questions.Length;
         var results = new QuestionResults(
             index, S.Questions.Length, question.CorrectIndex, counts, standings.Take(TopForResults).Select(s => s.Standing).ToList(), isLast);
@@ -346,7 +493,7 @@ public sealed class SessionGrain : Grain, ISessionGrain
         await _state.WriteStateAsync();
         await GrainFactory.GetGrain<IPinRegistryGrain>(S.Pin).Release();
 
-        var standings = Rank();
+        var standings = GetRanking();
         await Notify(() => _notifier.SessionFinished(
             sessionId, new FinalResults(standings.Take(TopForFinal).Select(s => s.Standing).ToList(), standings.Count)));
 
@@ -354,7 +501,56 @@ public sealed class SessionGrain : Grain, ISessionGrain
             sessionId, S.QuizId, S.QuizTitle, S.OwnerId, S.StartedAtUtc, _time.GetUtcNow(),
             standings.Select(s => new PlayerSummary(s.Standing.Nickname, s.Standing.Points, s.Standing.Rank, S.Players[s.PlayerId].CorrectAnswers)).ToList(),
             S.Stats.Select(st => new QuestionSummary(st.Index, S.Questions[st.Index].Text, S.Questions[st.Index].CorrectIndex, st.OptionCounts)).ToList());
-        await Notify(() => _archive.Save(summary));
+        await SaveArchiveAsync(summary);
+    }
+
+    private async Task SaveArchiveAsync(SessionSummary summary)
+    {
+        if (await TrySaveArchiveAsync(summary, 1))
+            return;
+
+        // Retries run off the grain's turn: a slow database must not block a finished game's callers.
+        _ = RetryArchiveAsync(summary);
+    }
+
+    private async Task RetryArchiveAsync(SessionSummary summary)
+    {
+        var delay = _options.ArchiveRetryDelay;
+        for (var attempt = 2; attempt <= _options.ArchiveAttempts; attempt++)
+        {
+            await Task.Delay(delay, _time);
+            if (await TrySaveArchiveAsync(summary, attempt))
+                return;
+            delay *= 2;
+        }
+
+        _logger.LogError("Giving up archiving session {SessionId} after {Attempts} attempts", summary.SessionId, _options.ArchiveAttempts);
+    }
+
+    private async Task<bool> TrySaveArchiveAsync(SessionSummary summary, int attempt)
+    {
+        try
+        {
+            await _archive.Save(summary);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Archiving session {SessionId} failed (attempt {Attempt} of {Max})", summary.SessionId, attempt, _options.ArchiveAttempts);
+            return false;
+        }
+    }
+
+    // Points only change when a question closes, so the ranking is computed once per close and reused by every
+    // reconnecting client instead of re-sorting thousands of players for each of them.
+    private List<(Guid PlayerId, Standing Standing)> GetRanking()
+    {
+        if (_ranking is null)
+        {
+            _ranking = Rank();
+            _standingById = _ranking.ToDictionary(r => r.PlayerId, r => r.Standing);
+        }
+        return _ranking;
     }
 
     // Competition ranking: equal points share a rank and the next rank is skipped (1, 1, 3).
