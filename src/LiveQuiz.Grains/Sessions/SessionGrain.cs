@@ -479,14 +479,14 @@ public sealed class SessionGrain : Grain, ISessionGrain
         await GrainFactory.GetGrain<IPinRegistryGrain>(S.Pin).Release();
 
         var standings = GetRanking();
-        await Notify(() => _notifier.SessionFinished(
-            sessionId, new FinalResults(standings.Take(TopForFinal).Select(s => s.Standing).ToList(), standings.Count)));
-
         var summary = new SessionSummary(
             sessionId, S.QuizId, S.QuizTitle, S.OwnerId, S.StartedAtUtc, _time.GetUtcNow(),
             standings.Select(s => new PlayerSummary(s.Standing.Nickname, s.Standing.Points, s.Standing.Rank, S.Players[s.PlayerId].CorrectAnswers)).ToList(),
             S.Stats.Select(st => new QuestionSummary(st.Index, S.Questions[st.Index].Text, S.Questions[st.Index].CorrectIndex, st.OptionCounts)).ToList());
+        // Archive first: once clients are told the game is over, the host's history must already list it.
         await SaveArchiveAsync(summary);
+        await Notify(() => _notifier.SessionFinished(
+            sessionId, new FinalResults(standings.Take(TopForFinal).Select(s => s.Standing).ToList(), standings.Count)));
     }
 
     private async Task SaveArchiveAsync(SessionSummary summary)
