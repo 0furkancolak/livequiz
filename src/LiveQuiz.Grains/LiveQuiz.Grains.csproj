@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\LiveQuiz.Contracts\LiveQuiz.Contracts.csproj" />
+    <PackageReference Include="Microsoft.Orleans.Server" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Orleans" />
+    <Using Include="Orleans.Runtime" />
   </ItemGroup>
 </Project>
