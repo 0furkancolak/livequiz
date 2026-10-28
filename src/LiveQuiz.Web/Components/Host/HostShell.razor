@@ -17,14 +17,14 @@
         </a>
         @if (ShowAccount)
         {
-            <MudButton Href="/host" Color="Color.Inherit" Class="ml-4">Quizzes</MudButton>
+            <MudButton Href="/host" Color="Color.Inherit" Class="ml-4 host-quizzes">Quizzes</MudButton>
             <MudButton Href="/host/history" Color="Color.Inherit">History</MudButton>
         }
         <MudSpacer />
-        <MudButton Href="/play" Color="Color.Inherit">Join a game</MudButton>
+        <MudButton Href="/play" Color="Color.Inherit" Class="host-join">Join a game</MudButton>
         @if (ShowAccount && _email is not null)
         {
-            <MudText Class="mr-4">@_email</MudText>
+            <MudText Class="mr-4 host-email">@_email</MudText>
             <MudButton Color="Color.Inherit" OnClick="SignOutAsync">Sign out</MudButton>
         }
     </MudAppBar>

@@ -26,6 +26,12 @@ Captured from the Compose stack with the seeded demo host.
 | --- | --- | --- | --- |
 | ![Player join](docs/screenshots/06-player-join.png) | ![Player lobby](docs/screenshots/07-player-lobby.png) | ![Player question](docs/screenshots/09-player-question.png) | ![Player result](docs/screenshots/10-player-result.png) |
 
+On a 375 px phone:
+
+| Home | Host sign in | Quizzes | Quiz editor | Player result |
+| --- | --- | --- | --- | --- |
+| ![Home](docs/screenshots/mobile-01-home.png) | ![Host sign in](docs/screenshots/mobile-02-host-login.png) | ![Quizzes](docs/screenshots/mobile-03-host-quizzes.png) | ![Quiz editor](docs/screenshots/mobile-05-quiz-editor.png) | ![Player result](docs/screenshots/mobile-04-player-result.png) |
+
 ## Architecture
 
 ```mermaid

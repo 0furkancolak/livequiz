@@ -49,3 +49,10 @@ body:has(.play), body:has(.home) { background: #f6f4ff; color: #1d1a3a; color-sc
 .host-mark i:nth-child(4) { background: #5b6cff; }
 .mud-appbar .mud-button-root { font-weight: 700; }
 .mud-main-content { min-height: calc(100vh - 64px); }
+
+.mud-appbar .mud-button-root { white-space: nowrap; }
+@media (max-width: 600px) {
+    .mud-appbar .host-email, .mud-appbar .host-join { display: none; }
+    .mud-appbar .host-quizzes { margin-left: .5rem !important; }
+    .mud-appbar .mud-button-root { min-width: 0; padding: 6px 8px; }
+}
