@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Hosting;
 using System.Net;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace LiveQuiz.Api.Tests;
@@ -13,7 +13,8 @@ public sealed class HealthTests(WebApplicationFactory<Program> factory) : IClass
         using var client = factory
             .WithWebHostBuilder(b => b
                 .UseEnvironment("Development")
-                .UseSetting("ConnectionStrings:livequizdb", "Host=localhost;Database=unused"))
+                .UseSetting("ConnectionStrings:livequizdb", "Host=localhost;Database=unused")
+                .UseSetting("Database:MigrateOnStartup", "false"))
             .CreateClient();
 
         var response = await client.GetAsync("/alive", TestContext.Current.CancellationToken);
