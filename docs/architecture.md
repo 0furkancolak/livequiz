@@ -1,12 +1,13 @@
 # Architecture
 
-Status: Phase 0 skeleton. Updated as phases land.
+Status: Phase 1 (content + auth). Updated as phases land.
 
 ```mermaid
 flowchart LR
     Browser["Browser"] -->|InteractiveServer circuit| Web["LiveQuiz.Web (host panel)"]
     Browser -->|WASM player| Web
-    Web -->|HTTP, service discovery| Api["LiveQuiz.Api"]
+    Browser -->|"/api/** (YARP proxy)"| Web
+    Web -->|"HTTP + Identity cookie"| Api["LiveQuiz.Api (Identity, quizzes)"]
     Api --> PG[("PostgreSQL")]
     Api -. OTLP .-> Dash["Aspire dashboard"]
     Web -. OTLP .-> Dash

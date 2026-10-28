@@ -10,7 +10,7 @@ Requires .NET 10 SDK and Docker.
 dotnet run --project src/LiveQuiz.AppHost
 ```
 
-Dashboard: http://localhost:15888 (login link is printed in the console). Web: http://localhost:5255.
+Dashboard: http://localhost:15888 (login link is printed in the console). Web: http://localhost:5255 (host panel: `/host`, register at `/host/register`).
 
 ```bash
 dotnet test --solution LiveQuiz.sln
