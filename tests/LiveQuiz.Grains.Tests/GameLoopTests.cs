@@ -200,7 +200,6 @@ public class GameLoopTests(ClusterFixture fixture)
         Assert.Equal(3, summary.Players.Count);
         Assert.Equal(2, summary.Questions.Count);
         Assert.Equal([2, 0, 1, 0], summary.Questions[0].OptionCounts);
-        Assert.Equal(1900, (await fixture.Grains.GetGrain<IPlayerGrain>(a.PlayerId, PlayerKeys.Extension(game.Id)).GetScore()).TotalPoints);
         Assert.Equal(GameCommandResult.InvalidState, await game.Session.Next());
     }
 

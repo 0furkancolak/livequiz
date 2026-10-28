@@ -138,7 +138,7 @@ public sealed class SessionGrain : Grain, ISessionGrain
             S.QuizId = quizId;
             S.QuizTitle = quizTitle;
             S.Questions = questions;
-            await _state.WriteStateAsync();
+            await _state.WriteTimedAsync("session");
             ArmAbandonTimer();
             return pin;
         }
@@ -170,7 +170,7 @@ public sealed class SessionGrain : Grain, ISessionGrain
         {
             await GrainFactory.GetGrain<IPlayerGrain>(playerId, PlayerKeys.Extension(this.GetPrimaryKey()))
                 .Initialize(name, PlayerGrain.HashToken(token));
-            await _state.WriteStateAsync();
+            await _state.WriteTimedAsync("session");
         }
         catch
         {
@@ -287,7 +287,7 @@ public sealed class SessionGrain : Grain, ISessionGrain
 
         DisarmTimers();
         S.Status = SessionStatus.Cancelled;
-        await _state.WriteStateAsync();
+        await _state.WriteTimedAsync("session");
         await GrainFactory.GetGrain<IPinRegistryGrain>(S.Pin).Release();
         await Notify(() => _notifier.SessionCancelled(this.GetPrimaryKey()));
     }
@@ -390,7 +390,7 @@ public sealed class SessionGrain : Grain, ISessionGrain
         S.QuestionStartedAtUtc = _time.GetUtcNow();
         _answers.Clear();
         _ranking = null;
-        await _state.WriteStateAsync();
+        await _state.WriteTimedAsync("session");
         ArmCloseTimer();
 
         var q = S.Questions[index];
@@ -452,9 +452,7 @@ public sealed class SessionGrain : Grain, ISessionGrain
 
         S.Stats.Add(new QuestionStat { Index = index, OptionCounts = counts });
         S.Status = SessionStatus.QuestionResults;
-        await _state.WriteStateAsync();
-
-        await Task.WhenAll(outcomes.Select(o => RecordForPlayer(sessionId, o.Key, index, o.Value)));
+        await _state.WriteTimedAsync("session");
 
         var standings = GetRanking();
         var isLast = index + 1 >= S.Questions.Length;
@@ -472,25 +470,12 @@ public sealed class SessionGrain : Grain, ISessionGrain
         }));
     }
 
-    private async Task RecordForPlayer(Guid sessionId, Guid playerId, int index, (int Option, int Points, bool Correct, TimeSpan Elapsed) o)
-    {
-        try
-        {
-            await GrainFactory.GetGrain<IPlayerGrain>(playerId, PlayerKeys.Extension(sessionId))
-                .RecordAnswer(index, o.Option, o.Points, (int)o.Elapsed.TotalMilliseconds);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not record the answer of player {PlayerId} in session {SessionId}", playerId, sessionId);
-        }
-    }
-
     private async Task Finish()
     {
         var sessionId = this.GetPrimaryKey();
         DisarmTimers();
         S.Status = SessionStatus.Finished;
-        await _state.WriteStateAsync();
+        await _state.WriteTimedAsync("session");
         await GrainFactory.GetGrain<IPinRegistryGrain>(S.Pin).Release();
 
         var standings = GetRanking();

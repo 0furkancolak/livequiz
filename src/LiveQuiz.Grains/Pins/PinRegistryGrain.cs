@@ -15,7 +15,7 @@ public sealed class PinRegistryGrain(
             return owner == sessionId;
 
         state.State.SessionId = sessionId;
-        await state.WriteStateAsync();
+        await state.WriteTimedAsync("pin");
         return true;
     }
 
