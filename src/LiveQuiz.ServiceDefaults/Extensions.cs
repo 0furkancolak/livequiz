@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -29,6 +30,22 @@ public static class Extensions
             http.AddStandardResilienceHandler();
             http.AddServiceDiscovery();
         });
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Api and Web share the Identity cookie, so both must use the same Data Protection application name and key ring.
+    /// <c>DataProtection:KeysPath</c> points at a shared directory (set by the AppHost locally);
+    /// production needs a shared store instead (see ADR 0007).
+    /// </summary>
+    public static TBuilder AddSharedDataProtection<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+    {
+        var dataProtection = builder.Services.AddDataProtection().SetApplicationName("LiveQuiz");
+        if (builder.Configuration["DataProtection:KeysPath"] is { Length: > 0 } path)
+        {
+            dataProtection.PersistKeysToFileSystem(new DirectoryInfo(path));
+        }
 
         return builder;
     }
