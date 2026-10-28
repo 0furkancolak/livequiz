@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Built so the fixture can start the real processes; nothing is referenced from them. -->
+    <ProjectReference Include="..\..\src\LiveQuiz.Api\LiveQuiz.Api.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\LiveQuiz.Web\LiveQuiz.Web.csproj" ReferenceOutputAssembly="false" />
+    <PackageReference Include="Microsoft.Playwright" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Microsoft.Playwright" />
+  </ItemGroup>
+</Project>
