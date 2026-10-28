@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\LiveQuiz.Contracts\LiveQuiz.Contracts.csproj" />
+    <ProjectReference Include="..\LiveQuiz.Grains\LiveQuiz.Grains.csproj" />
+    <ProjectReference Include="..\LiveQuiz.ServiceDefaults\LiveQuiz.ServiceDefaults.csproj" />
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+</Project>
