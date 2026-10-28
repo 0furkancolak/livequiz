@@ -16,3 +16,7 @@ A session can have thousands of players but only one host.
 ## Consequences
 Player capacity is bounded by the hub/Orleans, not by circuit memory. Player code must live in the Client
 project and only reference `LiveQuiz.Contracts`.
+
+## Amendment (Phase 2)
+The player page uses `InteractiveWebAssemblyRenderMode(prerender: false)` (`PlayerRenderModes.Wasm`). It is entirely
+per-user and live, and prerendering would force the server to register the player's browser-only services.
