@@ -7,7 +7,6 @@ public interface IHostLobbyClient : IAsyncDisposable
 {
     event Action<PlayerInfo>? PlayerJoined;
     event Action<Guid, bool>? PlayerConnectionChanged;
-    event Action<int>? CountChanged;
     event Action? Cancelled;
 
     Task<HostLobbySnapshot> ConnectAsync(Guid sessionId, CancellationToken ct = default);

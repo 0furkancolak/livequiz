@@ -114,4 +114,27 @@ public sealed class SessionEndpointTests(ApiFactory factory)
         var join = await player.PostAsJsonAsync("/api/sessions/join", new JoinSessionRequest(session.Pin, "Sam"), Ct);
         Assert.Equal(HttpStatusCode.NotFound, join.StatusCode);
     }
+
+    [Fact]
+    public async Task Session_and_player_state_is_persisted_in_postgres()
+    {
+        using var host = await TestClient.SignedInAsync(factory);
+        var session = await StartSession(host);
+        using var player = factory.CreateClient();
+        await player.PostAsJsonAsync("/api/sessions/join", new JoinSessionRequest(session.Pin, "Sam"), Ct);
+
+        await using var connection = new Npgsql.NpgsqlConnection(factory.ConnectionString);
+        await connection.OpenAsync(Ct);
+        await using var command = new Npgsql.NpgsqlCommand(
+            "select distinct graintypestring from orleansstorage",
+            connection);
+        var types = new List<string>();
+        await using var reader = await command.ExecuteReaderAsync(Ct);
+        while (await reader.ReadAsync(Ct))
+            types.Add(reader.GetString(0));
+
+        Assert.Contains(types, t => t.StartsWith("session", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(types, t => t.StartsWith("player", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(types, t => t == "pin");
+    }
 }

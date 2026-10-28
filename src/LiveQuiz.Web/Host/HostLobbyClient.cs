@@ -15,7 +15,6 @@ public sealed class HostLobbyClient(ServiceEndpointResolver resolver, ApiSession
 
     public event Action<PlayerInfo>? PlayerJoined;
     public event Action<Guid, bool>? PlayerConnectionChanged;
-    public event Action<int>? CountChanged;
     public event Action? Cancelled;
 
     public async Task<HostLobbySnapshot> ConnectAsync(Guid sessionId, CancellationToken ct = default)
@@ -31,7 +30,6 @@ public sealed class HostLobbyClient(ServiceEndpointResolver resolver, ApiSession
         });
         hub.PlayerJoined += p => PlayerJoined?.Invoke(p);
         hub.PlayerConnectionChanged += (id, c) => PlayerConnectionChanged?.Invoke(id, c);
-        hub.LobbyCount += c => CountChanged?.Invoke(c);
         hub.SessionCancelled += () => Cancelled?.Invoke();
 
         try
