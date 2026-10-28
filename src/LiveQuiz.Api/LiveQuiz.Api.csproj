@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <ItemGroup>
+    <PackageReference Include="Microsoft.Orleans.Persistence.AdoNet" />
+    <PackageReference Include="Microsoft.Orleans.Server" />
     <ProjectReference Include="..\LiveQuiz.Contracts\LiveQuiz.Contracts.csproj" />
     <ProjectReference Include="..\LiveQuiz.Grains\LiveQuiz.Grains.csproj" />
     <ProjectReference Include="..\LiveQuiz.ServiceDefaults\LiveQuiz.ServiceDefaults.csproj" />
@@ -9,5 +11,8 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Persistence\Orleans\orleans-persistence.sql" />
   </ItemGroup>
 </Project>

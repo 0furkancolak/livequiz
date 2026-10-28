@@ -1,6 +1,7 @@
 using LiveQuiz.Api.Features.Auth;
 using LiveQuiz.Api.Features.Diagnostics;
 using LiveQuiz.Api.Features.Quizzes;
+using LiveQuiz.Api.Features.Sessions;
 using LiveQuiz.Api.Persistence;
 using LiveQuiz.ServiceDefaults;
 
@@ -18,6 +19,10 @@ if (builder.Configuration.GetValue("Database:MigrateOnStartup", builder.Environm
     builder.Services.AddHostedService<MigrationHostedService>();
 }
 
+builder.AddOrleansSilo();
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<LiveQuiz.Grains.Sessions.ISessionNotifier, SignalRSessionNotifier>();
+
 var app = builder.Build();
 
 app.UseAuthentication();
@@ -27,6 +32,7 @@ app.MapDefaultEndpoints();
 app.MapPing();
 app.MapHostAuth();
 app.MapQuizzes();
+app.MapSessions();
 
 app.Run();
 
