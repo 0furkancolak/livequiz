@@ -1,6 +1,6 @@
 # Architecture
 
-Status: Phase 4 (resilience: reconnect, restart, rate limits; ADR 0013, 0014). Updated as phases land.
+Status: Phase 5 (two silos, SignalR backplane, load test; ADR 0015, 0016, docs/load-test.md). Updated as phases land.
 
 ```mermaid
 flowchart LR
@@ -13,5 +13,5 @@ flowchart LR
     Web -. OTLP .-> Dash
 ```
 
-Planned additions: Orleans silo in the API (Phase 2), SignalR hub (Phase 2-3), second silo + backplane (Phase 5).
+Phase 5 added a second Api instance (its own Orleans silo, membership in Postgres) and an Orleans-based SignalR backplane.
 Decisions are recorded in [adr/](adr/).
