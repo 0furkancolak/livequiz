@@ -9,6 +9,8 @@
     <!-- Aspire -->
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="$(AspireVersion)" />
     <PackageVersion Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="$(AspireVersion)" />
+    <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="$(AspNetVersion)" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="$(AspNetVersion)" />
     <!-- ASP.NET Core / Blazor -->
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="$(AspNetVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="$(AspNetVersion)" />
@@ -21,7 +23,12 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="$(OtelVersion)" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="$(OtelVersion)" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="$(OtelVersion)" />
+    <PackageVersion Include="MudBlazor" Version="9.11.0" />
+    <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery.Yarp" Version="10.11.0" />
+    <PackageVersion Include="Yarp.ReverseProxy" Version="2.3.0" />
     <!-- Tests -->
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.16.0" />
+    <PackageVersion Include="bunit" Version="2.13.3" />
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
   </ItemGroup>
 </Project>
