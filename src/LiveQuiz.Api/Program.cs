@@ -1,6 +1,7 @@
 using LiveQuiz.Api.Features.Auth;
 using LiveQuiz.Api.Features.Diagnostics;
 using LiveQuiz.Api.Features.Quizzes;
+using LiveQuiz.Api.Features.RateLimiting;
 using LiveQuiz.Api.Features.Sessions;
 using LiveQuiz.Api.Persistence;
 using LiveQuiz.ServiceDefaults;
@@ -19,6 +20,7 @@ if (builder.Configuration.GetValue("Database:MigrateOnStartup", builder.Environm
     builder.Services.AddHostedService<MigrationHostedService>();
 }
 
+builder.Services.AddApiRateLimiting(builder.Configuration);
 builder.AddOrleansSilo();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<LiveQuiz.Grains.Sessions.ISessionNotifier, SignalRSessionNotifier>();
@@ -26,6 +28,9 @@ builder.Services.AddSingleton<LiveQuiz.Grains.Sessions.ISessionArchive, EfSessio
 
 var app = builder.Build();
 
+// First, so everything after it sees the real client address.
+app.UseForwardedHeaders();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

@@ -1,3 +1,4 @@
+using LiveQuiz.Api.Features.RateLimiting;
 using LiveQuiz.Api.Persistence;
 using Microsoft.AspNetCore.Identity;
 
@@ -37,7 +38,8 @@ public static class AuthEndpoints
 
     public static IEndpointRouteBuilder MapHostAuth(this IEndpointRouteBuilder app)
     {
-        var auth = app.MapGroup("/api/auth");
+        // Everything under /api/auth (login, register, refresh, ...) counts against the per-IP budget.
+        var auth = app.MapGroup("/api/auth").RequireRateLimiting(RateLimitSetup.AuthPolicy);
         auth.MapIdentityApi<AppUser>();
 
         auth.MapPost("/logout", async (SignInManager<AppUser> signIn) =>

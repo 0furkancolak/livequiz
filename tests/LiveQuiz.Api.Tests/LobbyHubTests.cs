@@ -82,7 +82,7 @@ public sealed partial class LobbyHubTests(ApiFactory factory)
         using var _ = httpHost;
         var session = await SessionEndpointTests.StartSession(httpHost);
         await using var host = await ConnectAsync(cookie);
-        var snapshot = await host.Connection.InvokeAsync<HostLobbySnapshot>(nameof(IQuizHub.JoinAsHost), session.SessionId, Ct);
+        var snapshot = await host.Connection.InvokeAsync<HostSnapshot>(nameof(IQuizHub.JoinAsHost), session.SessionId, Ct);
         Assert.Equal(session.Pin, snapshot.Pin);
         Assert.Empty(snapshot.Players);
 
@@ -103,7 +103,7 @@ public sealed partial class LobbyHubTests(ApiFactory factory)
         await JoinAsync(session.Pin, "Bob");
 
         await using var host = await ConnectAsync(cookie);
-        var snapshot = await host.Connection.InvokeAsync<HostLobbySnapshot>(nameof(IQuizHub.JoinAsHost), session.SessionId, Ct);
+        var snapshot = await host.Connection.InvokeAsync<HostSnapshot>(nameof(IQuizHub.JoinAsHost), session.SessionId, Ct);
 
         Assert.Equal(["Ann", "Bob"], snapshot.Players.Select(p => p.Nickname).Order());
     }
@@ -120,8 +120,8 @@ public sealed partial class LobbyHubTests(ApiFactory factory)
         await using var anonymous = await ConnectAsync();
         await using var other = await ConnectAsync(otherCookie);
 
-        await Assert.ThrowsAsync<HubException>(() => anonymous.Connection.InvokeAsync<HostLobbySnapshot>(nameof(IQuizHub.JoinAsHost), session.SessionId, Ct));
-        await Assert.ThrowsAsync<HubException>(() => other.Connection.InvokeAsync<HostLobbySnapshot>(nameof(IQuizHub.JoinAsHost), session.SessionId, Ct));
+        await Assert.ThrowsAsync<HubException>(() => anonymous.Connection.InvokeAsync<HostSnapshot>(nameof(IQuizHub.JoinAsHost), session.SessionId, Ct));
+        await Assert.ThrowsAsync<HubException>(() => other.Connection.InvokeAsync<HostSnapshot>(nameof(IQuizHub.JoinAsHost), session.SessionId, Ct));
     }
 
     [Fact]
@@ -132,13 +132,13 @@ public sealed partial class LobbyHubTests(ApiFactory factory)
         var session = await SessionEndpointTests.StartSession(httpHost);
         var ann = await JoinAsync(session.Pin, "Ann");
         await using var host = await ConnectAsync(cookie);
-        await host.Connection.InvokeAsync<HostLobbySnapshot>(nameof(IQuizHub.JoinAsHost), session.SessionId, Ct);
+        await host.Connection.InvokeAsync<HostSnapshot>(nameof(IQuizHub.JoinAsHost), session.SessionId, Ct);
         await using var player = await ConnectAsync();
 
         await Assert.ThrowsAsync<HubException>(() =>
-            player.Connection.InvokeAsync<PlayerLobbySnapshot>(nameof(IQuizHub.JoinAsPlayer), session.SessionId, ann.PlayerId, "wrong-token", Ct));
+            player.Connection.InvokeAsync<PlayerGameState>(nameof(IQuizHub.JoinAsPlayer), session.SessionId, ann.PlayerId, "wrong-token", Ct));
 
-        var lobby = await player.Connection.InvokeAsync<PlayerLobbySnapshot>(
+        var lobby = await player.Connection.InvokeAsync<PlayerGameState>(
             nameof(IQuizHub.JoinAsPlayer), session.SessionId, ann.PlayerId, ann.ReconnectToken, Ct);
         Assert.Equal("Ann", lobby.Nickname);
         Assert.Equal(1, lobby.PlayerCount);
@@ -157,9 +157,9 @@ public sealed partial class LobbyHubTests(ApiFactory factory)
         var session = await SessionEndpointTests.StartSession(httpHost);
         var ann = await JoinAsync(session.Pin, "Ann");
         await using var host = await ConnectAsync(cookie);
-        await host.Connection.InvokeAsync<HostLobbySnapshot>(nameof(IQuizHub.JoinAsHost), session.SessionId, Ct);
+        await host.Connection.InvokeAsync<HostSnapshot>(nameof(IQuizHub.JoinAsHost), session.SessionId, Ct);
         var player = await ConnectAsync();
-        await player.Connection.InvokeAsync<PlayerLobbySnapshot>(
+        await player.Connection.InvokeAsync<PlayerGameState>(
             nameof(IQuizHub.JoinAsPlayer), session.SessionId, ann.PlayerId, ann.ReconnectToken, Ct);
 
         await Eventually(() => host.Connections.Contains((ann.PlayerId, true)) ? true : null as bool?);

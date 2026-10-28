@@ -19,7 +19,7 @@ public sealed class GameFlowTests(ApiFactory factory)
     {
         var joined = await _hub.JoinAsync(session.Pin, nickname);
         var probe = await _hub.ConnectAsync();
-        await probe.Connection.InvokeAsync<PlayerLobbySnapshot>(
+        await probe.Connection.InvokeAsync<PlayerGameState>(
             nameof(IQuizHub.JoinAsPlayer), session.SessionId, joined.PlayerId, joined.ReconnectToken, Ct);
         return probe;
     }
@@ -34,7 +34,7 @@ public sealed class GameFlowTests(ApiFactory factory)
         using var _ = httpHost;
         var session = await SessionEndpointTests.StartSession(httpHost); // 3 questions, correct option = n % 4
         await using var host = await _hub.ConnectAsync(cookie);
-        await host.Connection.InvokeAsync<HostLobbySnapshot>(nameof(IQuizHub.JoinAsHost), session.SessionId, Ct);
+        await host.Connection.InvokeAsync<HostSnapshot>(nameof(IQuizHub.JoinAsHost), session.SessionId, Ct);
         await using var ann = await PlayerAsync(session, "Ann");
         await using var bob = await PlayerAsync(session, "Bob");
 
@@ -49,7 +49,9 @@ public sealed class GameFlowTests(ApiFactory factory)
 
             var correct = (q + 1) % 4; // QuizFactory: question n (1-based) has its correct option at n % 4
             Assert.Equal(AnswerStatus.Accepted, await ann.Connection.InvokeAsync<AnswerStatus>(nameof(IQuizHub.SubmitAnswer), q, correct, Ct));
-            Assert.Equal(AnswerStatus.Duplicate, await ann.Connection.InvokeAsync<AnswerStatus>(nameof(IQuizHub.SubmitAnswer), q, correct, Ct));
+            // Only the first question probes duplicates: a person taps slower than the per-connection rate limit allows more of.
+            if (q == 0)
+                Assert.Equal(AnswerStatus.Duplicate, await ann.Connection.InvokeAsync<AnswerStatus>(nameof(IQuizHub.SubmitAnswer), q, correct, Ct));
             Assert.Equal(AnswerStatus.Accepted, await bob.Connection.InvokeAsync<AnswerStatus>(nameof(IQuizHub.SubmitAnswer), q, (correct + 1) % 4, Ct));
 
             // Everyone answered, so the question closes without waiting for the timer.
@@ -87,7 +89,7 @@ public sealed class GameFlowTests(ApiFactory factory)
         using var _ = httpHost;
         var session = await SessionEndpointTests.StartSession(httpHost);
         await using var host = await _hub.ConnectAsync(cookie);
-        await host.Connection.InvokeAsync<HostLobbySnapshot>(nameof(IQuizHub.JoinAsHost), session.SessionId, Ct);
+        await host.Connection.InvokeAsync<HostSnapshot>(nameof(IQuizHub.JoinAsHost), session.SessionId, Ct);
         await using var ann = await PlayerAsync(session, "Ann");
         await using var bob = await PlayerAsync(session, "Bob");
         await host.Connection.InvokeAsync(nameof(IQuizHub.StartGame), session.SessionId, Ct);

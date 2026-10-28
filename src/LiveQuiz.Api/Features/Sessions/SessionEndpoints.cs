@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using LiveQuiz.Api.Features.RateLimiting;
 using LiveQuiz.Api.Persistence;
 using LiveQuiz.Contracts.Game;
 using LiveQuiz.Contracts.Sessions;
@@ -59,16 +60,29 @@ public static class SessionEndpoints
         return Results.NoContent();
     }
 
-    private static async Task<IResult> Join(JoinSessionRequest request, IGrainFactory grains)
+    private static async Task<IResult> Join(
+        JoinSessionRequest request, HttpContext http, IGrainFactory grains, JoinAttemptLimiter limiter)
     {
-        var pin = request.Pin?.Trim() ?? string.Empty;
-        if (pin.Length != SessionLimits.PinLength || !pin.All(char.IsAsciiDigit))
-            return Results.NotFound();
+        var client = RateLimitSetup.ClientKey(http);
+        if (limiter.IsBlocked(client, out var retryAfter))
+        {
+            http.Response.Headers.RetryAfter = RateLimitSetup.RetryAfterSeconds(retryAfter);
+            return Results.Problem("Too many attempts. Please wait a moment.", statusCode: StatusCodes.Status429TooManyRequests);
+        }
 
-        if (await grains.GetGrain<IPinRegistryGrain>(pin).Resolve() is not { } sessionId)
+        var pin = request.Pin?.Trim() ?? string.Empty;
+        if (pin.Length != SessionLimits.PinLength || !pin.All(char.IsAsciiDigit)
+            || await grains.GetGrain<IPinRegistryGrain>(pin).Resolve() is not { } sessionId)
+        {
+            limiter.RecordFailure(client);
             return Results.NotFound();
+        }
 
         var result = await grains.GetGrain<ISessionGrain>(sessionId).Join(request.Nickname ?? string.Empty);
+        if (result.Status == JoinStatus.NotJoinable)
+            limiter.RecordFailure(client);
+
+        // Nickname clashes are ordinary user mistakes and do not count against the PIN-guessing budget.
         return result.Status switch
         {
             JoinStatus.Joined => Results.Ok(new JoinSessionResponse(sessionId, result.PlayerId, result.Nickname, result.ReconnectToken!)),
