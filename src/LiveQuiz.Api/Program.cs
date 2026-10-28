@@ -4,6 +4,7 @@ using LiveQuiz.Api.Features.Quizzes;
 using LiveQuiz.Api.Features.RateLimiting;
 using LiveQuiz.Api.Features.Sessions;
 using LiveQuiz.Api.Persistence;
+using ManagedCode.Orleans.SignalR.Server.Extensions;
 using LiveQuiz.ServiceDefaults;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,7 +23,7 @@ if (builder.Configuration.GetValue("Database:MigrateOnStartup", builder.Environm
 
 builder.Services.AddApiRateLimiting(builder.Configuration);
 builder.AddOrleansSilo();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR().AddOrleans();
 builder.Services.AddSingleton<LiveQuiz.Grains.Sessions.ISessionNotifier, SignalRSessionNotifier>();
 builder.Services.AddSingleton<LiveQuiz.Grains.Sessions.ISessionArchive, EfSessionArchive>();
 
@@ -36,6 +37,7 @@ app.UseAuthorization();
 
 app.MapDefaultEndpoints();
 app.MapPing();
+app.MapStats();
 app.MapHostAuth();
 app.MapQuizzes();
 app.MapSessions();

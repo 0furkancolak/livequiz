@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <ItemGroup>
     <PackageReference Include="Microsoft.Orleans.Persistence.AdoNet" />
+    <PackageReference Include="Microsoft.Orleans.Clustering.AdoNet" />
+    <PackageReference Include="Microsoft.Orleans.Serialization.SystemTextJson" />
+    <PackageReference Include="ManagedCode.Orleans.SignalR.Server" />
     <PackageReference Include="Microsoft.Orleans.Server" />
     <ProjectReference Include="..\LiveQuiz.Contracts\LiveQuiz.Contracts.csproj" />
     <ProjectReference Include="..\LiveQuiz.Grains\LiveQuiz.Grains.csproj" />
@@ -14,5 +17,6 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Persistence\Orleans\orleans-persistence.sql" />
+    <EmbeddedResource Include="Persistence\Orleans\orleans-clustering.sql" />
   </ItemGroup>
 </Project>

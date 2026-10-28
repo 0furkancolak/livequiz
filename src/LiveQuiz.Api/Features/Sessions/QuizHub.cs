@@ -38,11 +38,8 @@ public sealed class QuizHub(IGrainFactory grains, IOptions<RateLimitOptions> lim
     public async Task<PlayerGameState> JoinAsPlayer(Guid sessionId, Guid playerId, string reconnectToken)
     {
         var session = grains.GetGrain<ISessionGrain>(sessionId);
-        var info = await session.GetInfo();
         var player = grains.GetGrain<IPlayerGrain>(playerId, PlayerKeys.Extension(sessionId));
-        if (!(info.Status.IsLive() || info.Status == SessionStatus.Finished)
-            || info.Players.All(p => p.PlayerId != playerId)
-            || !await player.Verify(reconnectToken))
+        if (!await player.Verify(reconnectToken))
             throw new HubException("Session not found.");
 
         Context.Items[SessionKey] = sessionId;
@@ -51,7 +48,18 @@ public sealed class QuizHub(IGrainFactory grains, IOptions<RateLimitOptions> lim
         await Groups.AddToGroupAsync(Context.ConnectionId, QuizHubNames.PlayerGroup(sessionId, playerId));
         await session.SetPlayerConnected(playerId, Context.ConnectionId, true);
 
-        var view = await session.GetPlayerView(playerId) ?? throw new HubException("Session not found.");
+        // One call for the player's own view: GetInfo would ship every player of the game on each join (O(n) per
+        // join, so O(n^2) while 2000 people arrive) through the one grain that all of them are waiting on.
+        var view = await session.GetPlayerView(playerId);
+        if (view is null || !(view.Status.IsLive() || view.Status == SessionStatus.Finished))
+        {
+            await session.SetPlayerConnected(playerId, Context.ConnectionId, false);
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, QuizHubNames.PlayersGroup(sessionId));
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, QuizHubNames.PlayerGroup(sessionId, playerId));
+            Context.Items.Remove(SessionKey);
+            Context.Items.Remove(PlayerKey);
+            throw new HubException("Session not found.");
+        }
         return SessionViewMapper.ToPlayer(sessionId, view);
     }
 
