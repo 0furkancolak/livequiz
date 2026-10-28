@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\LiveQuiz.Contracts\LiveQuiz.Contracts.csproj" />
+  </ItemGroup>
+</Project>
