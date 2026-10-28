@@ -44,6 +44,7 @@
                 <MudTd DataLabel="Questions">@context.QuestionCount</MudTd>
                 <MudTd DataLabel="Updated">@context.UpdatedAtUtc.ToLocalTime().ToString("g")</MudTd>
                 <MudTd>
+                    <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" OnClick="() => StartAsync(context)" Disabled="@(context.QuestionCount == 0)" aria-label="@($"Start session for {context.Title}")" />
                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Href="@($"/host/quizzes/{context.Id}")" aria-label="@($"Edit {context.Title}")" />
                     <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="() => DeleteAsync(context)" aria-label="@($"Delete {context.Title}")" />
                 </MudTd>
@@ -71,6 +72,15 @@
         _error = result.IsSuccess ? null : "Could not load quizzes.";
         _quizzes = result.Value ?? [];
         _loading = false;
+    }
+
+    private async Task StartAsync(QuizSummary quiz)
+    {
+        var result = await Api.StartSessionAsync(quiz.Id);
+        if (result.IsSuccess && result.Value is { } session)
+            Navigation.NavigateTo($"/host/sessions/{session.SessionId}");
+        else
+            Snackbar.Add("Could not start a session.", Severity.Error);
     }
 
     private async Task DeleteAsync(QuizSummary quiz)

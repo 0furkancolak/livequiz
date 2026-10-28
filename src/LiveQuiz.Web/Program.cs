@@ -26,20 +26,30 @@ builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
 builder.Services.AddScoped<ApiSession>();
 builder.Services.AddScoped<Microsoft.AspNetCore.Components.Server.Circuits.CircuitHandler, ApiSessionCircuitHandler>();
 builder.Services.AddScoped<LiveQuiz.Web.Host.BrowserApi>();
+builder.Services.AddScoped<LiveQuiz.Web.Host.IHostLobbyClient, LiveQuiz.Web.Host.HostLobbyClient>();
 
 // "https+http://api" is resolved by Aspire service discovery (prefers https, falls back to http).
 builder.Services.AddHttpClient<ApiClient>(client => client.BaseAddress = new Uri("https+http://api"));
 
 // Web is the single browser-facing origin: /api/** is forwarded to the Api, so the Identity cookie
-// is first-party and neither CORS nor cross-origin cookies are needed (see ADR 0007).
+// is first-party and neither CORS nor cross-origin cookies are needed (see ADR 0007). /hubs/** takes the same path.
 builder.Services.AddReverseProxy()
     .LoadFromMemory(
-        [new Yarp.ReverseProxy.Configuration.RouteConfig
-        {
-            RouteId = "api",
-            ClusterId = "api",
-            Match = new Yarp.ReverseProxy.Configuration.RouteMatch { Path = "/api/{**catch-all}" }
-        }],
+        [
+            new Yarp.ReverseProxy.Configuration.RouteConfig
+            {
+                RouteId = "api",
+                ClusterId = "api",
+                Match = new Yarp.ReverseProxy.Configuration.RouteMatch { Path = "/api/{**catch-all}" }
+            },
+            // SignalR (WebSocket upgrade included) for the player screen; same cluster, same origin.
+            new Yarp.ReverseProxy.Configuration.RouteConfig
+            {
+                RouteId = "hubs",
+                ClusterId = "api",
+                Match = new Yarp.ReverseProxy.Configuration.RouteMatch { Path = "/hubs/{**catch-all}" }
+            }
+        ],
         [new Yarp.ReverseProxy.Configuration.ClusterConfig
         {
             ClusterId = "api",

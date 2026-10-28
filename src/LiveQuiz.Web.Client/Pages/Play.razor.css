@@ -1,0 +1,6 @@
+.play { max-width: 26rem; margin: 2rem auto; padding: 0 1rem; font-family: system-ui, sans-serif; }
+.play label { display: block; margin-top: 1rem; font-weight: 600; }
+.play input { width: 100%; box-sizing: border-box; padding: .75rem; font-size: 1.25rem; }
+.play button { margin-top: 1rem; padding: .75rem 1.5rem; font-size: 1.1rem; }
+.play .error { color: #b00020; min-height: 1.25rem; margin: .25rem 0 0; }
+.play .runtime { margin-top: 2rem; font-size: .75rem; color: #666; }

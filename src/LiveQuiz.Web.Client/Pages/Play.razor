@@ -1,7 +1,140 @@
 @page "/play"
-@rendermode InteractiveWebAssembly
+@rendermode PlayerRenderModes.Wasm
+@using LiveQuiz.Contracts.Sessions
+@using LiveQuiz.Web.Client.Lobby
+@implements IAsyncDisposable
+@inject IPlayerLobbyClient Lobby
 
 <PageTitle>Play</PageTitle>
 
-<h1>Player screen</h1>
-<p>Render mode: InteractiveWebAssembly (running in browser: <span id="is-wasm">@OperatingSystem.IsBrowser()</span>)</p>
+<main class="play">
+    <h1>LiveQuiz</h1>
+
+    @switch (_phase)
+    {
+        case Phase.Join:
+            <form @onsubmit="JoinAsync" novalidate>
+                <label for="pin">Game PIN</label>
+                <input id="pin" @bind="_pin" @bind:event="oninput" inputmode="numeric" autocomplete="off"
+                       maxlength="@SessionLimits.PinLength" aria-describedby="pin-error" />
+                <p id="pin-error" class="error" role="alert">@_pinError</p>
+
+                <label for="nickname">Nickname</label>
+                <input id="nickname" @bind="_nickname" @bind:event="oninput" autocomplete="off"
+                       maxlength="@SessionLimits.MaxNickname" aria-describedby="nickname-error" />
+                <p id="nickname-error" class="error" role="alert">@_nicknameError</p>
+
+                <p class="error" role="alert">@_error</p>
+                <button type="submit" disabled="@_busy">@(_busy ? "Joining…" : "Join")</button>
+            </form>
+            break;
+
+        case Phase.Lobby:
+            <section aria-live="polite">
+                <h2 id="welcome">You're in, @_lobby!.Nickname</h2>
+                <p id="player-count">@_count @(_count == 1 ? "player" : "players") in the lobby</p>
+                <p>Waiting for the host to start the game…</p>
+            </section>
+            break;
+
+        case Phase.Cancelled:
+            <section>
+                <h2 id="cancelled">The host closed this game.</h2>
+                <button type="button" @onclick="Reset">Join another game</button>
+            </section>
+            break;
+    }
+
+    <p class="runtime">Running in browser: <span id="is-wasm">@OperatingSystem.IsBrowser()</span></p>
+</main>
+
+@code {
+    private enum Phase { Join, Lobby, Cancelled }
+
+    private Phase _phase = Phase.Join;
+    private PlayerLobbySnapshot? _lobby;
+    private string _pin = string.Empty;
+    private string _nickname = string.Empty;
+    private string? _pinError, _nicknameError, _error;
+    private int _count;
+    private bool _busy;
+
+    protected override void OnInitialized()
+    {
+        Lobby.CountChanged += OnCount;
+        Lobby.Cancelled += OnCancelled;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        if (await Lobby.RestoreAsync() is { } restored)
+            Enter(restored);
+    }
+
+    private async Task JoinAsync()
+    {
+        _pinError = _nicknameError = _error = null;
+
+        var pin = _pin.Trim();
+        if (pin.Length != SessionLimits.PinLength || !pin.All(char.IsAsciiDigit))
+            _pinError = $"The PIN has {SessionLimits.PinLength} digits.";
+        var nicknameCheck = NicknamePolicy.Validate(_nickname);
+        if (nicknameCheck != NicknameError.None)
+            _nicknameError = NicknamePolicy.Message(nicknameCheck);
+        if (_pinError is not null || _nicknameError is not null)
+            return;
+
+        _busy = true;
+        try
+        {
+            var attempt = await Lobby.JoinAsync(pin, NicknamePolicy.Normalize(_nickname));
+            if (attempt.Succeeded)
+                Enter(attempt.Lobby!);
+            else if (attempt.NicknameProblem)
+                _nicknameError = attempt.Error;
+            else
+                _error = attempt.Error;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void Enter(PlayerLobbySnapshot lobby)
+    {
+        _lobby = lobby;
+        _count = lobby.PlayerCount;
+        _phase = Phase.Lobby;
+        StateHasChanged();
+    }
+
+    private void OnCount(int count) => InvokeAsync(() =>
+    {
+        _count = count;
+        StateHasChanged();
+    });
+
+    private void OnCancelled() => InvokeAsync(() =>
+    {
+        _phase = Phase.Cancelled;
+        StateHasChanged();
+    });
+
+    private void Reset()
+    {
+        _phase = Phase.Join;
+        _lobby = null;
+        _pin = _nickname = string.Empty;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Lobby.CountChanged -= OnCount;
+        Lobby.Cancelled -= OnCancelled;
+        await Lobby.DisposeAsync();
+    }
+}

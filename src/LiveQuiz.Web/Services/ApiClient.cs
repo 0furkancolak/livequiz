@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using LiveQuiz.Contracts.Quizzes;
+using LiveQuiz.Contracts.Sessions;
 
 namespace LiveQuiz.Web.Services;
 
@@ -29,6 +30,12 @@ public sealed class ApiClient(HttpClient http, ApiSession session)
 
     public Task<ApiResult<object>> DeleteQuizAsync(Guid id, CancellationToken ct = default) =>
         SendAsync<object>(HttpMethod.Delete, $"/api/quizzes/{id}", null, ct);
+
+    public Task<ApiResult<CreateSessionResponse>> StartSessionAsync(Guid quizId, CancellationToken ct = default) =>
+        SendAsync<CreateSessionResponse>(HttpMethod.Post, "/api/sessions", new CreateSessionRequest(quizId), ct);
+
+    public Task<ApiResult<object>> CancelSessionAsync(Guid sessionId, CancellationToken ct = default) =>
+        SendAsync<object>(HttpMethod.Delete, $"/api/sessions/{sessionId}", null, ct);
 
     private async Task<ApiResult<T>> SendAsync<T>(HttpMethod method, string url, object? body, CancellationToken ct)
     {
