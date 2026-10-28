@@ -1,21 +1,15 @@
 using System.Net;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace LiveQuiz.Api.Tests;
 
-public sealed class HealthTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+// The Orleans silo initialises its Postgres storage at startup, so the Api cannot boot without a database any more.
+[Collection(ApiCollection.Name)]
+public sealed class HealthTests(ApiFactory factory)
 {
     [Fact]
-    public async Task Alive_endpoint_returns_ok_without_touching_the_database()
+    public async Task Alive_endpoint_returns_ok()
     {
-        // The connection string is a placeholder: /alive only runs the "live"-tagged self check.
-        using var client = factory
-            .WithWebHostBuilder(b => b
-                .UseEnvironment("Development")
-                .UseSetting("ConnectionStrings:livequizdb", "Host=localhost;Database=unused")
-                .UseSetting("Database:MigrateOnStartup", "false"))
-            .CreateClient();
+        using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/alive", TestContext.Current.CancellationToken);
 
