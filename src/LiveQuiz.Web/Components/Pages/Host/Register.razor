@@ -1,0 +1,59 @@
+@page "/host/register"
+@rendermode HostRenderModes.Server
+@using LiveQuiz.Web.Host
+@inject BrowserApi Browser
+@inject NavigationManager Navigation
+
+<PageTitle>Register</PageTitle>
+
+<HostShell ShowAccount="false">
+    <MudPaper Class="pa-6 mx-auto" MaxWidth="420px">
+        <MudText Typo="Typo.h5" Class="mb-4">Create a host account</MudText>
+        <EditForm Model="_model" OnValidSubmit="SubmitAsync" FormName="register">
+            <MudTextField @bind-Value="_model.Email" Label="Email" InputType="InputType.Email" Required="true" />
+            <MudTextField @bind-Value="_model.Password" Label="Password" InputType="InputType.Password" Required="true"
+                          HelperText="At least 8 characters, with upper and lower case letters, a digit and a symbol." />
+            @foreach (var message in _errors)
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-3" role="alert">@message</MudAlert>
+            }
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="_busy" FullWidth="true">Register</MudButton>
+        </EditForm>
+        <MudText Class="mt-4">Already registered? <MudLink Href="/host/login">Sign in</MudLink></MudText>
+    </MudPaper>
+</HostShell>
+
+@code {
+    private readonly Credentials _model = new();
+    private List<string> _errors = [];
+    private bool _busy;
+
+    private async Task SubmitAsync()
+    {
+        _busy = true;
+        _errors = [];
+
+        var register = await Browser.PostJsonAsync("/api/auth/register", new { email = _model.Email, password = _model.Password });
+        if (!register.Ok)
+        {
+            _errors = register.Messages.Count > 0 ? register.Messages.ToList() : ["Registration failed."];
+            _busy = false;
+            return;
+        }
+
+        var login = await Browser.PostJsonAsync("/api/auth/login?useCookies=true", new { email = _model.Email, password = _model.Password });
+        if (login.Ok)
+        {
+            Navigation.NavigateTo("/host", forceLoad: true);
+            return;
+        }
+
+        Navigation.NavigateTo("/host/login", forceLoad: true);
+    }
+
+    private sealed class Credentials
+    {
+        public string Email { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
+}

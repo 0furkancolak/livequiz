@@ -1,0 +1,86 @@
+@page "/host/quizzes/new"
+@page "/host/quizzes/{Id:guid}"
+@rendermode HostRenderModes.Server
+@attribute [Authorize]
+@using LiveQuiz.Contracts.Quizzes
+@using LiveQuiz.Web.Host
+@using LiveQuiz.Web.Services
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>@(Id is null ? "New quiz" : "Edit quiz")</PageTitle>
+
+<HostShell>
+    <MudText Typo="Typo.h4" Class="mb-4">@(Id is null ? "New quiz" : "Edit quiz")</MudText>
+
+    @if (_draft is null)
+    {
+        @if (_notFound)
+        {
+            <MudAlert Severity="Severity.Warning" role="alert">Quiz not found.</MudAlert>
+        }
+        else
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+    }
+    else
+    {
+        <QuizEditor Draft="_draft" OnSave="SaveAsync" Saving="_saving" ServerErrors="_serverErrors" />
+    }
+</HostShell>
+
+@code {
+    private QuizDraft? _draft;
+    private bool _notFound;
+    private bool _saving;
+    private IReadOnlyDictionary<string, string[]>? _serverErrors;
+
+    [Parameter] public Guid? Id { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id is null)
+        {
+            _draft = QuizDraft.NewQuiz();
+            return;
+        }
+
+        var result = await Api.GetQuizAsync(Id.Value);
+        if (result.IsUnauthorized)
+        {
+            Navigation.NavigateTo("/host/login", forceLoad: true);
+            return;
+        }
+
+        _notFound = !result.IsSuccess;
+        _draft = result.Value is null ? null : QuizDraft.From(result.Value);
+    }
+
+    private async Task SaveAsync(SaveQuizRequest request)
+    {
+        _saving = true;
+        _serverErrors = null;
+
+        var result = Id is null
+            ? await Api.CreateQuizAsync(request)
+            : await Api.UpdateQuizAsync(Id.Value, request);
+
+        _saving = false;
+        if (result.IsUnauthorized)
+        {
+            Navigation.NavigateTo("/host/login", forceLoad: true);
+        }
+        else if (result.IsSuccess)
+        {
+            Snackbar.Add("Quiz saved.", Severity.Success);
+            Navigation.NavigateTo("/host");
+        }
+        else
+        {
+            _serverErrors = result.Errors;
+            Snackbar.Add("Could not save the quiz.", Severity.Error);
+        }
+    }
+}

@@ -1,0 +1,50 @@
+@using LiveQuiz.Web.Host
+@using LiveQuiz.Web.Services
+@inject BrowserApi Browser
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthState
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudLink Href="/host" Color="Color.Inherit" Underline="Underline.None"><MudText Typo="Typo.h6">LiveQuiz</MudText></MudLink>
+        <MudSpacer />
+        @if (ShowAccount && _email is not null)
+        {
+            <MudText Class="mr-4">@_email</MudText>
+            <MudButton Color="Color.Inherit" OnClick="SignOutAsync">Sign out</MudButton>
+        }
+    </MudAppBar>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="mt-6 mb-6">
+            @ChildContent
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>False on the sign-in and registration pages.</summary>
+    [Parameter] public bool ShowAccount { get; set; } = true;
+
+    private string? _email;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!ShowAccount)
+            return;
+        var state = await AuthState.GetAuthenticationStateAsync();
+        _email = state.User.Identity?.IsAuthenticated == true ? state.User.Identity.Name : null;
+    }
+
+    private async Task SignOutAsync()
+    {
+        await Browser.PostJsonAsync("/api/auth/logout", null);
+        Navigation.NavigateTo("/host/login", forceLoad: true);
+    }
+}

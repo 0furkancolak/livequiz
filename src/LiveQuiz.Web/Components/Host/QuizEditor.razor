@@ -1,0 +1,96 @@
+@using LiveQuiz.Contracts.Quizzes
+@using LiveQuiz.Web.Host
+
+<MudStack Spacing="3">
+    <MudTextField @bind-Value="Draft.Title" Label="Title" MaxLength="QuizLimits.MaxTitleLength"
+                  Error="@HasError("Title")" ErrorText="@ErrorText("Title")" />
+    <MudTextField @bind-Value="Draft.Description" Label="Description (optional)" Lines="2" MaxLength="QuizLimits.MaxDescriptionLength"
+                  Error="@HasError("Description")" ErrorText="@ErrorText("Description")" />
+
+    @if (HasError("Questions"))
+    {
+        <MudAlert Severity="Severity.Error" role="alert">@ErrorText("Questions")</MudAlert>
+    }
+
+    @for (var i = 0; i < Draft.Questions.Count; i++)
+    {
+        var qi = i;
+        var question = Draft.Questions[qi];
+        var path = $"Questions[{qi}]";
+
+        <MudPaper Class="pa-4" Outlined="true" data-testid="question">
+            <MudStack Row="true" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.h6">Question @(qi + 1)</MudText>
+                <MudSpacer />
+                <MudNumericField @bind-Value="question.TimeLimitSeconds" Label="Seconds" Style="max-width: 120px"
+                                 Min="QuizLimits.MinTimeLimitSeconds" Max="QuizLimits.MaxTimeLimitSeconds"
+                                 Error="@HasError($"{path}.TimeLimitSeconds")" ErrorText="@ErrorText($"{path}.TimeLimitSeconds")" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Remove question" OnClick="() => RemoveQuestion(qi)"
+                               Disabled="Draft.Questions.Count <= 1" />
+            </MudStack>
+
+            <MudTextField @bind-Value="question.Text" Label="Question text" MaxLength="QuizLimits.MaxQuestionTextLength"
+                          Error="@HasError($"{path}.Text")" ErrorText="@ErrorText($"{path}.Text")" />
+
+            <MudText Typo="Typo.subtitle2" Class="mt-3">Answers (select the correct one)</MudText>
+            <MudRadioGroup T="int" @bind-Value="question.CorrectIndex">
+                @for (var j = 0; j < question.Options.Count; j++)
+                {
+                    var oj = j;
+                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                        <MudRadio T="int" Value="oj" aria-label="@($"Mark option {oj + 1} correct")" />
+                        <MudTextField @bind-Value="question.Options[oj].Text" Label="@($"Option {oj + 1}")" MaxLength="QuizLimits.MaxOptionTextLength"
+                                      Error="@HasError($"{path}.Options[{oj}].Text")" ErrorText="@ErrorText($"{path}.Options[{oj}].Text")" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" aria-label="Remove option" OnClick="() => question.RemoveOption(oj)"
+                                       Disabled="!question.CanRemoveOption" />
+                    </MudStack>
+                }
+            </MudRadioGroup>
+            @if (HasError($"{path}.Options"))
+            {
+                <MudAlert Severity="Severity.Error" Dense="true" role="alert">@ErrorText($"{path}.Options")</MudAlert>
+            }
+            <MudButton Class="mt-2" OnClick="question.AddOption" Disabled="!question.CanAddOption">Add option</MudButton>
+        </MudPaper>
+    }
+
+    <MudStack Row="true">
+        <MudButton OnClick="AddQuestion" Disabled="Draft.Questions.Count >= QuizLimits.MaxQuestions">Add question</MudButton>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="Saving">Save quiz</MudButton>
+    </MudStack>
+</MudStack>
+
+@code {
+    private IReadOnlyDictionary<string, string[]> _clientErrors = new Dictionary<string, string[]>();
+
+    [Parameter, EditorRequired] public QuizDraft Draft { get; set; } = default!;
+    [Parameter] public EventCallback<SaveQuizRequest> OnSave { get; set; }
+    [Parameter] public bool Saving { get; set; }
+
+    /// <summary>Errors returned by the API (shown when the client-side check passed but the server disagreed).</summary>
+    [Parameter] public IReadOnlyDictionary<string, string[]>? ServerErrors { get; set; }
+
+    private void AddQuestion() => Draft.AddQuestion();
+
+    private void RemoveQuestion(int index)
+    {
+        if (Draft.Questions.Count > 1)
+            Draft.Questions.RemoveAt(index);
+        _clientErrors = new Dictionary<string, string[]>();
+    }
+
+    private async Task SaveAsync()
+    {
+        var request = Draft.ToRequest();
+        _clientErrors = QuizValidator.Validate(request);
+        if (_clientErrors.Count == 0)
+            await OnSave.InvokeAsync(request);
+    }
+
+    private IReadOnlyDictionary<string, string[]> Errors => _clientErrors.Count > 0 ? _clientErrors : ServerErrors ?? _clientErrors;
+
+    private bool HasError(string key) => Errors.ContainsKey(key);
+
+    private string? ErrorText(string key) => Errors.TryGetValue(key, out var messages) ? string.Join(" ", messages) : null;
+}

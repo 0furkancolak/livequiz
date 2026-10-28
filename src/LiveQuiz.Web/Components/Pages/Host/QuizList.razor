@@ -1,0 +1,89 @@
+@page "/host"
+@rendermode HostRenderModes.Server
+@attribute [Authorize]
+@using LiveQuiz.Contracts.Quizzes
+@using LiveQuiz.Web.Host
+@using LiveQuiz.Web.Services
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+
+<PageTitle>My quizzes</PageTitle>
+
+<HostShell>
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudText Typo="Typo.h4" Class="mb-0">My quizzes</MudText>
+        <MudSpacer />
+        <MudButton Href="/host/quizzes/new" Variant="Variant.Filled" Color="Color.Primary">New quiz</MudButton>
+    </MudStack>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error" role="alert">@_error</MudAlert>
+    }
+    else if (_quizzes.Count == 0)
+    {
+        <MudText id="empty-state">You have no quizzes yet. Create your first one.</MudText>
+    }
+    else
+    {
+        <MudTable Items="_quizzes" Hover="true" Elevation="1">
+            <HeaderContent>
+                <MudTh>Title</MudTh>
+                <MudTh>Questions</MudTh>
+                <MudTh>Updated</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Title">@context.Title</MudTd>
+                <MudTd DataLabel="Questions">@context.QuestionCount</MudTd>
+                <MudTd DataLabel="Updated">@context.UpdatedAtUtc.ToLocalTime().ToString("g")</MudTd>
+                <MudTd>
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Href="@($"/host/quizzes/{context.Id}")" aria-label="@($"Edit {context.Title}")" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="() => DeleteAsync(context)" aria-label="@($"Delete {context.Title}")" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</HostShell>
+
+@code {
+    private List<QuizSummary> _quizzes = [];
+    private bool _loading = true;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var result = await Api.ListQuizzesAsync();
+        if (result.IsUnauthorized)
+        {
+            Navigation.NavigateTo("/host/login", forceLoad: true);
+            return;
+        }
+
+        _error = result.IsSuccess ? null : "Could not load quizzes.";
+        _quizzes = result.Value ?? [];
+        _loading = false;
+    }
+
+    private async Task DeleteAsync(QuizSummary quiz)
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            "Delete quiz", $"Delete \"{quiz.Title}\" and all its questions?", yesText: "Delete", cancelText: "Cancel");
+        if (confirmed != true)
+            return;
+
+        var result = await Api.DeleteQuizAsync(quiz.Id);
+        if (result.IsSuccess || result.IsNotFound)
+            _quizzes.Remove(quiz);
+        else
+            Snackbar.Add("Could not delete the quiz.", Severity.Error);
+    }
+}

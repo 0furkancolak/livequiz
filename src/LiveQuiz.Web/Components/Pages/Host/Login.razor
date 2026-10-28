@@ -1,0 +1,51 @@
+@page "/host/login"
+@rendermode HostRenderModes.Server
+@using LiveQuiz.Web.Host
+@inject BrowserApi Browser
+@inject NavigationManager Navigation
+
+<PageTitle>Sign in</PageTitle>
+
+<HostShell ShowAccount="false">
+    <MudPaper Class="pa-6 mx-auto" MaxWidth="420px">
+        <MudText Typo="Typo.h5" Class="mb-4">Host sign in</MudText>
+        <EditForm Model="_model" OnValidSubmit="SubmitAsync" FormName="login">
+            <MudTextField @bind-Value="_model.Email" Label="Email" InputType="InputType.Email" Required="true" />
+            <MudTextField @bind-Value="_model.Password" Label="Password" InputType="InputType.Password" Required="true" />
+            @foreach (var message in _errors)
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-3" role="alert">@message</MudAlert>
+            }
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="_busy" FullWidth="true">Sign in</MudButton>
+        </EditForm>
+        <MudText Class="mt-4">No account? <MudLink Href="/host/register">Register</MudLink></MudText>
+    </MudPaper>
+</HostShell>
+
+@code {
+    private readonly Credentials _model = new();
+    private List<string> _errors = [];
+    private bool _busy;
+
+    private async Task SubmitAsync()
+    {
+        _busy = true;
+        _errors = [];
+        var result = await Browser.PostJsonAsync("/api/auth/login?useCookies=true", new { email = _model.Email, password = _model.Password });
+        if (result.Ok)
+        {
+            // Full reload: the new circuit must start with the freshly set cookie.
+            Navigation.NavigateTo("/host", forceLoad: true);
+            return;
+        }
+
+        _errors = ["Invalid email or password."];
+        _busy = false;
+    }
+
+    private sealed class Credentials
+    {
+        public string Email { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
+}
