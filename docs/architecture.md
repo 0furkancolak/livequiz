@@ -1,6 +1,6 @@
 # Architecture
 
-Status: Phase 1 (content + auth). Updated as phases land.
+Status: Phase 4 (resilience: reconnect, restart, rate limits; ADR 0013, 0014). Updated as phases land.
 
 ```mermaid
 flowchart LR

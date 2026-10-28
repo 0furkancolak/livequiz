@@ -1,6 +1,6 @@
 # ADR 0012: Open-question answers stay in memory and are persisted when the question closes
 
-Status: accepted
+Status: accepted (restart, retry and reconnect handled in ADR 0013)
 
 ## Decision
 While a question is open, answers live only in the session grain's memory. When it closes, the grain updates scores,
