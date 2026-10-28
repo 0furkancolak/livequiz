@@ -1,9 +1,11 @@
 @page "/play"
 @rendermode PlayerRenderModes.Wasm
+@using System.Diagnostics
+@using LiveQuiz.Contracts.Game
 @using LiveQuiz.Contracts.Sessions
 @using LiveQuiz.Web.Client.Lobby
 @implements IAsyncDisposable
-@inject IPlayerLobbyClient Lobby
+@inject IPlayerSessionClient Session
 
 <PageTitle>Play</PageTitle>
 
@@ -31,9 +33,67 @@
 
         case Phase.Lobby:
             <section aria-live="polite">
-                <h2 id="welcome">You're in, @_lobby!.Nickname</h2>
+                <h2 id="welcome">You're in, @_nicknameShown</h2>
                 <p id="player-count">@_count @(_count == 1 ? "player" : "players") in the lobby</p>
                 <p>Waiting for the host to start the game…</p>
+            </section>
+            break;
+
+        case Phase.Question:
+            <section>
+                <p id="question-progress">Question @(_question!.Index + 1) of @_question.Total</p>
+                <h2 id="question-text">@_question.Text</h2>
+                <p id="countdown" aria-hidden="true">@RemainingSeconds s</p>
+                <div class="options">
+                    @for (var i = 0; i < _question.Options.Count; i++)
+                    {
+                        var index = i;
+                        <button type="button" id="@($"option-{index}")" class="option option-@index @(_chosen == index ? "chosen" : "")"
+                                disabled="@(_chosen is not null)" @onclick="() => AnswerAsync(index)">
+                            <span class="label">@Labels[index]</span> @_question.Options[index]
+                        </button>
+                    }
+                </div>
+                <p id="answer-status" role="status">@_answerMessage</p>
+            </section>
+            break;
+
+        case Phase.Result:
+            <section aria-live="polite">
+                @if (_result is null)
+                {
+                    <h2 id="result-pending">Time's up!</h2>
+                }
+                else
+                {
+                    <h2 id="result-headline" class="@(_result.Correct ? "correct" : "wrong")">
+                        @(_result.Correct ? "Correct!" : _result.Answered ? "Wrong" : "No answer")
+                    </h2>
+                    <p id="result-points">+@_result.Points points · @_result.TotalPoints total</p>
+                    <p id="result-rank">Rank @_result.Rank of @_result.PlayerCount</p>
+                }
+                @if (_results is not null && _question is not null)
+                {
+                    <p id="correct-answer">Correct answer: <b>@_question.Options[_results.CorrectIndex]</b></p>
+                }
+                <p>Waiting for the next question…</p>
+            </section>
+            break;
+
+        case Phase.Finished:
+            <section>
+                <h2 id="finished">Game over</h2>
+                @if (_result is not null)
+                {
+                    <p id="final-rank">You finished #@_result.Rank with @_result.TotalPoints points.</p>
+                }
+                <ol id="podium">
+                    @foreach (var s in _final!.Top.Take(5))
+                    {
+                        <li>#@s.Rank @s.Nickname — @s.Points</li>
+                    }
+                </ol>
+                <button type="button" @onclick="Reset">Join another game</button>
             </section>
             break;
 
@@ -49,20 +109,37 @@
 </main>
 
 @code {
-    private enum Phase { Join, Lobby, Cancelled }
+    private enum Phase { Join, Lobby, Question, Result, Finished, Cancelled }
+
+    private static readonly string[] Labels = ["A", "B", "C", "D"];
 
     private Phase _phase = Phase.Join;
-    private PlayerLobbySnapshot? _lobby;
+    private string _nicknameShown = string.Empty;
     private string _pin = string.Empty;
     private string _nickname = string.Empty;
-    private string? _pinError, _nicknameError, _error;
+    private string? _pinError, _nicknameError, _error, _answerMessage;
     private int _count;
     private bool _busy;
 
+    private QuestionForPlayer? _question;
+    private QuestionResults? _results;
+    private PlayerQuestionResult? _result;
+    private FinalResults? _final;
+    private int? _chosen;
+    private readonly Stopwatch _clock = new();
+    private Timer? _ticker;
+
+    // The countdown is cosmetic. The server decides what is on time; this only shows roughly how long is left.
+    private int RemainingSeconds => _question is null ? 0 : Math.Max(0, (int)Math.Ceiling((_question.RemainingMs - _clock.ElapsedMilliseconds) / 1000d));
+
     protected override void OnInitialized()
     {
-        Lobby.CountChanged += OnCount;
-        Lobby.Cancelled += OnCancelled;
+        Session.CountChanged += OnCount;
+        Session.Cancelled += OnCancelled;
+        Session.QuestionStarted += OnQuestionStarted;
+        Session.QuestionEnded += OnQuestionEnded;
+        Session.ResultReceived += OnResultReceived;
+        Session.Finished += OnFinished;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -70,8 +147,8 @@
         if (!firstRender)
             return;
 
-        if (await Lobby.RestoreAsync() is { } restored)
-            Enter(restored);
+        if (await Session.RestoreAsync() is { } restored)
+            EnterLobby(restored);
     }
 
     private async Task JoinAsync()
@@ -90,9 +167,9 @@
         _busy = true;
         try
         {
-            var attempt = await Lobby.JoinAsync(pin, NicknamePolicy.Normalize(_nickname));
+            var attempt = await Session.JoinAsync(pin, NicknamePolicy.Normalize(_nickname));
             if (attempt.Succeeded)
-                Enter(attempt.Lobby!);
+                EnterLobby(attempt.Lobby!);
             else if (attempt.NicknameProblem)
                 _nicknameError = attempt.Error;
             else
@@ -104,12 +181,27 @@
         }
     }
 
-    private void Enter(PlayerLobbySnapshot lobby)
+    private void EnterLobby(PlayerLobbySnapshot lobby)
     {
-        _lobby = lobby;
+        _nicknameShown = lobby.Nickname;
         _count = lobby.PlayerCount;
         _phase = Phase.Lobby;
         StateHasChanged();
+    }
+
+    private async Task AnswerAsync(int index)
+    {
+        if (_question is null || _chosen is not null)
+            return;
+
+        _chosen = index;
+        var status = await Session.SubmitAnswerAsync(_question.Index, index);
+        _answerMessage = status switch
+        {
+            AnswerStatus.Accepted => "Answer locked in!",
+            AnswerStatus.TooLate => "Too late — the question has closed.",
+            _ => "Your answer could not be accepted."
+        };
     }
 
     private void OnCount(int count) => InvokeAsync(() =>
@@ -118,23 +210,74 @@
         StateHasChanged();
     });
 
+    private void OnQuestionStarted(QuestionForPlayer question) => InvokeAsync(() =>
+    {
+        _question = question;
+        _results = null;
+        _result = null;
+        _chosen = null;
+        _answerMessage = null;
+        _clock.Restart();
+        _ticker?.Dispose();
+        _ticker = new Timer(_ => InvokeAsync(StateHasChanged), null, 250, 250);
+        _phase = Phase.Question;
+        StateHasChanged();
+    });
+
+    private void OnQuestionEnded(QuestionResults results) => InvokeAsync(() =>
+    {
+        StopTicker();
+        _results = results;
+        _phase = Phase.Result;
+        StateHasChanged();
+    });
+
+    private void OnResultReceived(PlayerQuestionResult result) => InvokeAsync(() =>
+    {
+        _result = result;
+        StateHasChanged();
+    });
+
+    private void OnFinished(FinalResults final) => InvokeAsync(() =>
+    {
+        StopTicker();
+        _final = final;
+        _phase = Phase.Finished;
+        StateHasChanged();
+    });
+
     private void OnCancelled() => InvokeAsync(() =>
     {
+        StopTicker();
         _phase = Phase.Cancelled;
         StateHasChanged();
     });
 
+    private void StopTicker()
+    {
+        _ticker?.Dispose();
+        _ticker = null;
+    }
+
     private void Reset()
     {
         _phase = Phase.Join;
-        _lobby = null;
+        _question = null;
+        _results = null;
+        _result = null;
+        _final = null;
         _pin = _nickname = string.Empty;
     }
 
     public async ValueTask DisposeAsync()
     {
-        Lobby.CountChanged -= OnCount;
-        Lobby.Cancelled -= OnCancelled;
-        await Lobby.DisposeAsync();
+        StopTicker();
+        Session.CountChanged -= OnCount;
+        Session.Cancelled -= OnCancelled;
+        Session.QuestionStarted -= OnQuestionStarted;
+        Session.QuestionEnded -= OnQuestionEnded;
+        Session.ResultReceived -= OnResultReceived;
+        Session.Finished -= OnFinished;
+        await Session.DisposeAsync();
     }
 }

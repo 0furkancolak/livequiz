@@ -26,7 +26,7 @@ builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
 builder.Services.AddScoped<ApiSession>();
 builder.Services.AddScoped<Microsoft.AspNetCore.Components.Server.Circuits.CircuitHandler, ApiSessionCircuitHandler>();
 builder.Services.AddScoped<LiveQuiz.Web.Host.BrowserApi>();
-builder.Services.AddScoped<LiveQuiz.Web.Host.IHostLobbyClient, LiveQuiz.Web.Host.HostLobbyClient>();
+builder.Services.AddScoped<LiveQuiz.Web.Host.IHostSessionClient, LiveQuiz.Web.Host.HostSessionClient>();
 
 // "https+http://api" is resolved by Aspire service discovery (prefers https, falls back to http).
 builder.Services.AddHttpClient<ApiClient>(client => client.BaseAddress = new Uri("https+http://api"));

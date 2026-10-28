@@ -1,17 +1,25 @@
 using System.Net;
 using System.Net.Http.Json;
+using LiveQuiz.Contracts.Game;
 using LiveQuiz.Contracts.Sessions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.SignalR;
 
 namespace LiveQuiz.Web.Client.Lobby;
 
-public sealed class PlayerLobbyClient(HttpClient http, NavigationManager navigation, PlayerIdentityStore store) : IPlayerLobbyClient
+public sealed class PlayerSessionClient(HttpClient http, NavigationManager navigation, PlayerIdentityStore store) : IPlayerSessionClient
 {
     private QuizHubConnection? _hub;
 
     public event Action<int>? CountChanged;
     public event Action? Cancelled;
+    public event Action<QuestionForPlayer>? QuestionStarted;
+    public event Action<QuestionResults>? QuestionEnded;
+    public event Action<PlayerQuestionResult>? ResultReceived;
+    public event Action<FinalResults>? Finished;
+
+    public async Task<AnswerStatus> SubmitAnswerAsync(int questionIndex, int optionIndex, CancellationToken ct = default) =>
+        _hub is null ? AnswerStatus.NotInGame : await _hub.SubmitAnswerAsync(questionIndex, optionIndex, ct);
 
     public async Task<JoinAttempt> JoinAsync(string pin, string nickname, CancellationToken ct = default)
     {
@@ -51,6 +59,14 @@ public sealed class PlayerLobbyClient(HttpClient http, NavigationManager navigat
         await DisposeHubAsync();
         var hub = new QuizHubConnection(navigation.ToAbsoluteUri(QuizHubNames.Path));
         hub.LobbyCount += c => CountChanged?.Invoke(c);
+        hub.QuestionStarted += q => QuestionStarted?.Invoke(q);
+        hub.QuestionEnded += r => QuestionEnded?.Invoke(r);
+        hub.PlayerResult += r => ResultReceived?.Invoke(r);
+        hub.SessionFinished += f =>
+        {
+            _ = store.ClearAsync();
+            Finished?.Invoke(f);
+        };
         hub.SessionCancelled += () =>
         {
             _ = store.ClearAsync();

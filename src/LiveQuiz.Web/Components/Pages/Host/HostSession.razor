@@ -1,0 +1,273 @@
+@page "/host/sessions/{SessionId:guid}"
+@rendermode HostRenderModes.Server
+@attribute [Authorize]
+@using System.Diagnostics
+@using LiveQuiz.Contracts.Game
+@using LiveQuiz.Contracts.Sessions
+@using LiveQuiz.Web.Host
+@using LiveQuiz.Web.Services
+@implements IAsyncDisposable
+@inject IHostSessionClient Lobby
+@inject ApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Session</PageTitle>
+
+<HostShell>
+    @if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error" role="alert">@_error</MudAlert>
+        <MudButton Href="/host" Class="mt-4">Back to my quizzes</MudButton>
+    }
+    else if (_snapshot is null)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else
+    {
+        @if (_commandError is not null)
+        {
+            <MudAlert Severity="Severity.Warning" role="alert" Class="mb-3">@_commandError</MudAlert>
+        }
+
+        @switch (_phase)
+        {
+            case Phase.Lobby:
+                <MudText Typo="Typo.h6">@_snapshot.QuizTitle</MudText>
+                <MudText Typo="Typo.subtitle1">Join at <b>/play</b> with PIN</MudText>
+                <MudText id="session-pin" Typo="Typo.h1" Class="my-4" Style="letter-spacing: .2em">@_snapshot.Pin</MudText>
+
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+                    <MudText id="lobby-count" Typo="Typo.h5">@_players.Count @(_players.Count == 1 ? "player" : "players")</MudText>
+                    <MudSpacer />
+                    <MudButton id="start-game" Color="Color.Primary" Variant="Variant.Filled" OnClick="StartAsync"
+                               Disabled="@(_players.Count == 0 || _busy)">Start game</MudButton>
+                    <MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="CancelAsync" Disabled="_busy" Class="ml-2">Cancel session</MudButton>
+                </MudStack>
+
+                <MudPaper Class="pa-3" Elevation="1" aria-live="polite">
+                    @if (_players.Count == 0)
+                    {
+                        <MudText Color="Color.Secondary">Waiting for players to join…</MudText>
+                    }
+                    else
+                    {
+                        <MudChipSet T="string" ReadOnly="true">
+                            @foreach (var player in _players)
+                            {
+                                <MudChip T="string" Class="player-chip" Color="@(player.Connected ? Color.Success : Color.Default)">@player.Nickname</MudChip>
+                            }
+                        </MudChipSet>
+                    }
+                </MudPaper>
+                break;
+
+            case Phase.Question:
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+                    <MudText id="question-progress" Typo="Typo.subtitle1">Question @(_question!.Index + 1) of @_question!.Total</MudText>
+                    <MudSpacer />
+                    <MudText id="countdown" Typo="Typo.h4">@RemainingSeconds s</MudText>
+                </MudStack>
+                <MudText id="question-text" Typo="Typo.h4" Class="mb-4">@_question!.Text</MudText>
+                <MudGrid>
+                    @for (var i = 0; i < _question!.Options.Count; i++)
+                    {
+                        var index = i; // child content renders after the loop ends, so it must not capture i
+                        <MudItem xs="12" sm="6">
+                            <MudPaper Class="pa-4 question-option" Elevation="2"><b>@Labels[index]</b> @_question!.Options[index]</MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
+                <MudText id="answer-count" Typo="Typo.h6" Class="mt-4">@_answered of @_players.Count answered</MudText>
+                break;
+
+            case Phase.Results:
+                <MudText Typo="Typo.subtitle1">Question @(_results!.Index + 1) of @_results!.Total</MudText>
+                <MudText id="question-text" Typo="Typo.h5" Class="mb-3">@_question!.Text</MudText>
+                @for (var i = 0; i < _question!.Options.Count; i++)
+                {
+                    var index = i;
+                    var count = _results!.OptionCounts[index];
+                    var isCorrect = index == _results!.CorrectIndex;
+                    <div class="result-row @(isCorrect ? "correct" : "")" data-correct="@(isCorrect ? "yes" : "no")">
+                        <MudText><b>@Labels[index]</b> @_question!.Options[index] — <span class="count">@count</span> @(isCorrect ? "✓" : "")</MudText>
+                        <MudProgressLinear Value="@Percent(count)" Color="@(isCorrect ? Color.Success : Color.Default)" Rounded="true" />
+                    </div>
+                }
+                <MudText Typo="Typo.h6" Class="mt-4">Leaderboard</MudText>
+                <MudSimpleTable Dense="true" id="leaderboard">
+                    <tbody>
+                        @foreach (var s in _results!.Top)
+                        {
+                            <tr><td>#@s.Rank</td><td>@s.Nickname</td><td>@s.Points</td></tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+                <MudButton id="next-question" Color="Color.Primary" Variant="Variant.Filled" Class="mt-4" OnClick="NextAsync" Disabled="_busy">
+                    @(_results!.IsLast ? "Show final results" : "Next question")
+                </MudButton>
+                break;
+
+            case Phase.Finished:
+                <MudText id="finished" Typo="Typo.h3" Class="mb-3">Final results</MudText>
+                <MudSimpleTable id="podium">
+                    <tbody>
+                        @foreach (var s in _final!.Top)
+                        {
+                            <tr><td>#@s.Rank</td><td>@s.Nickname</td><td>@s.Points</td></tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+                <MudButton Href="/host" Class="mt-4" Variant="Variant.Filled" Color="Color.Primary">Back to my quizzes</MudButton>
+                break;
+        }
+    }
+</HostShell>
+
+@code {
+    private enum Phase { Lobby, Question, Results, Finished }
+
+    private static readonly string[] Labels = ["A", "B", "C", "D"];
+
+    [Parameter] public Guid SessionId { get; set; }
+
+    private Phase _phase = Phase.Lobby;
+    private HostLobbySnapshot? _snapshot;
+    private List<PlayerInfo> _players = [];
+    private QuestionForPlayer? _question;
+    private QuestionResults? _results;
+    private FinalResults? _final;
+    private int _answered;
+    private string? _error, _commandError;
+    private bool _busy;
+    private readonly Stopwatch _clock = new();
+    private Timer? _ticker;
+
+    private int RemainingSeconds => _question is null ? 0 : Math.Max(0, (int)Math.Ceiling((_question.RemainingMs - _clock.ElapsedMilliseconds) / 1000d));
+
+    private double Percent(int count)
+    {
+        var max = _results!.OptionCounts.Max();
+        return max == 0 ? 0 : count * 100d / max;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lobby.PlayerJoined += OnPlayerJoined;
+        Lobby.PlayerConnectionChanged += OnConnectionChanged;
+        Lobby.Cancelled += OnCancelled;
+        Lobby.QuestionStarted += OnQuestionStarted;
+        Lobby.AnswerCount += OnAnswerCount;
+        Lobby.QuestionEnded += OnQuestionEnded;
+        Lobby.Finished += OnFinished;
+
+        try
+        {
+            _snapshot = await Lobby.ConnectAsync(SessionId);
+            _players = [.. _snapshot.Players];
+        }
+        catch (Exception ex) when (ex is Microsoft.AspNetCore.SignalR.HubException or HttpRequestException or InvalidOperationException)
+        {
+            _error = "This session is not available. It may have ended.";
+        }
+    }
+
+    private async Task StartAsync() => await RunAsync(() => Lobby.StartGameAsync(SessionId));
+
+    private async Task NextAsync() => await RunAsync(() => Lobby.NextQuestionAsync(SessionId));
+
+    private async Task RunAsync(Func<Task> command)
+    {
+        _busy = true;
+        _commandError = null;
+        try
+        {
+            await command();
+        }
+        catch (Microsoft.AspNetCore.SignalR.HubException ex)
+        {
+            _commandError = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void OnPlayerJoined(PlayerInfo player) => InvokeAsync(() =>
+    {
+        if (_players.All(p => p.PlayerId != player.PlayerId))
+            _players.Add(player);
+        StateHasChanged();
+    });
+
+    private void OnConnectionChanged(Guid playerId, bool connected) => InvokeAsync(() =>
+    {
+        var index = _players.FindIndex(p => p.PlayerId == playerId);
+        if (index >= 0)
+            _players[index] = _players[index] with { Connected = connected };
+        StateHasChanged();
+    });
+
+    private void OnQuestionStarted(QuestionForPlayer question) => InvokeAsync(() =>
+    {
+        _question = question;
+        _results = null;
+        _answered = 0;
+        _clock.Restart();
+        _ticker?.Dispose();
+        _ticker = new Timer(_ => InvokeAsync(StateHasChanged), null, 250, 250);
+        _phase = Phase.Question;
+        StateHasChanged();
+    });
+
+    private void OnAnswerCount(int answered, int total) => InvokeAsync(() =>
+    {
+        _answered = answered;
+        StateHasChanged();
+    });
+
+    private void OnQuestionEnded(QuestionResults results) => InvokeAsync(() =>
+    {
+        StopTicker();
+        _results = results;
+        _phase = Phase.Results;
+        StateHasChanged();
+    });
+
+    private void OnFinished(FinalResults final) => InvokeAsync(() =>
+    {
+        StopTicker();
+        _final = final;
+        _phase = Phase.Finished;
+        StateHasChanged();
+    });
+
+    private void OnCancelled() => InvokeAsync(() => Navigation.NavigateTo("/host"));
+
+    private async Task CancelAsync()
+    {
+        _busy = true;
+        await Api.CancelSessionAsync(SessionId);
+        Navigation.NavigateTo("/host");
+    }
+
+    private void StopTicker()
+    {
+        _ticker?.Dispose();
+        _ticker = null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        StopTicker();
+        Lobby.PlayerJoined -= OnPlayerJoined;
+        Lobby.PlayerConnectionChanged -= OnConnectionChanged;
+        Lobby.Cancelled -= OnCancelled;
+        Lobby.QuestionStarted -= OnQuestionStarted;
+        Lobby.AnswerCount -= OnAnswerCount;
+        Lobby.QuestionEnded -= OnQuestionEnded;
+        Lobby.Finished -= OnFinished;
+        await Lobby.DisposeAsync();
+    }
+}

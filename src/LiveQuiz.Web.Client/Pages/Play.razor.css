@@ -4,3 +4,11 @@
 .play button { margin-top: 1rem; padding: .75rem 1.5rem; font-size: 1.1rem; }
 .play .error { color: #b00020; min-height: 1.25rem; margin: .25rem 0 0; }
 .play .runtime { margin-top: 2rem; font-size: .75rem; color: #666; }
+.play .options { display: grid; grid-template-columns: 1fr; gap: .5rem; }
+.play .option { width: 100%; margin: 0; text-align: left; border: 2px solid #ccc; border-radius: .5rem; background: #fff; }
+.play .option .label { display: inline-block; min-width: 1.5rem; font-weight: 700; }
+.play .option.chosen { border-color: #3f51b5; background: #e8eaf6; }
+.play .option:disabled:not(.chosen) { opacity: .6; }
+.play .correct { color: #1b7f3b; }
+.play .wrong { color: #b00020; }
+#countdown { font-size: 1.5rem; font-weight: 700; }
