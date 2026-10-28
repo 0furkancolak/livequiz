@@ -17,5 +17,12 @@ jobs:
         run: dotnet restore LiveQuiz.sln
       - name: Build
         run: dotnet build LiveQuiz.sln --no-restore -c Release
-      - name: Test
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('Directory.Packages.props') }}
+      - name: Test (unit, integration and Playwright E2E)
         run: dotnet test --solution LiveQuiz.sln --no-build -c Release
+      - name: Docker images build
+        run: docker compose build

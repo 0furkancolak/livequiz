@@ -1,6 +1,6 @@
 # Architecture
 
-Status: Phase 5 (two silos, SignalR backplane, load test; ADR 0015, 0016, docs/load-test.md). Updated as phases land.
+Status: Phase 6 (E2E tests, Docker Compose; ADR 0017). The README has the current diagram. Updated as phases land.
 
 ```mermaid
 flowchart LR
