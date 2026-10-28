@@ -7,6 +7,7 @@ using LiveQuiz.ServiceDefaults;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddSharedDataProtection();
 builder.AddNpgsqlDbContext<AppDbContext>("livequizdb");
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHostAuth();
