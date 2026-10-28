@@ -36,6 +36,7 @@ for (var i = 1; i <= instanceCount; i++)
 
 var web = builder.AddProject<Projects.LiveQuiz_Web>("web")
     .WithEnvironment("DataProtection__KeysPath", keysDir)
+    .WithEnvironment("Demo__Enabled", "true")
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health");
 

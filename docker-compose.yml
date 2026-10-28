@@ -15,6 +15,7 @@ x-api: &api
     ASPNETCORE_ENVIRONMENT: Production
     ConnectionStrings__livequizdb: Host=postgres;Database=livequizdb;Username=postgres;Password=${POSTGRES_PASSWORD:-livequiz-dev}
     Database__MigrateOnStartup: "true"
+    Seed__Demo: "true"
     Cluster__Provider: AdoNet
     Cluster__SiloPort: "11111"
     Cluster__GatewayPort: "30000"
@@ -60,6 +61,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       Api__Instances: api-1,api-2
+      Demo__Enabled: "true"
       services__api-1__http__0: http://api-1:8080
       services__api-2__http__0: http://api-2:8080
 

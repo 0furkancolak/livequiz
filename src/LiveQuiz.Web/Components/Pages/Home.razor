@@ -1,6 +1,7 @@
 @page "/"
 @using LiveQuiz.Web.Client.Layout
 @using LiveQuiz.Contracts.Sessions
+@inject IConfiguration Configuration
 
 <PageTitle>LiveQuiz – play quizzes together</PageTitle>
 
@@ -40,6 +41,10 @@
         <div class="actions">
             <a class="primary" href="/host/register">Create a host account</a>
             <a class="secondary" href="/host/login">Sign in</a>
+            @if (Configuration.GetValue<bool>("Demo:Enabled"))
+            {
+                <a class="secondary" href="/host/login">Try the demo host</a>
+            }
         </div>
     </section>
 </main>

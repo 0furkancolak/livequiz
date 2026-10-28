@@ -7,8 +7,8 @@
 .join label { display: block; font-weight: 600; margin-top: .5rem; }
 .join input { width: 100%; box-sizing: border-box; margin-top: .25rem; padding: .75rem; font-size: 1.6rem; letter-spacing: .25em; text-align: center; border: 2px solid #9e9e9e; border-radius: .5rem; background: #fff; color: #1d1a3a; }
 .join input:focus { outline: none; border-color: #5b6cff; }
-.join button { width: 100%; margin-top: 1rem; padding: .85rem; font-size: 1.1rem; font-weight: 700; border: 0; border-radius: .5rem; background: #5b6cff; color: #fff; cursor: pointer; }
-.join button:hover { background: #4757e6; }
+.join button { width: 100%; margin-top: 1rem; padding: .85rem; font-size: 1.1rem; font-weight: 700; border: 0; border-radius: .5rem; background: #4757e6; color: #fff; cursor: pointer; }
+.join button:hover { background: #3a49d0; }
 .join button:focus-visible, .actions a:focus-visible { outline: 3px solid #ffc933; outline-offset: 2px; }
 .hint { margin: .75rem 0 0; font-size: .9rem; color: #55527a; }
 .how { background: #fff; padding: 3.5rem 1rem 4rem; }

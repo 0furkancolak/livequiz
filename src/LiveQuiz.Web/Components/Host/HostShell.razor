@@ -4,14 +4,17 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthState
 
-<MudThemeProvider />
+<MudThemeProvider Theme="_theme" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
 <MudLayout>
     <MudAppBar Elevation="1">
-        <MudLink Href="/host" Color="Color.Inherit" Underline="Underline.None"><MudText Typo="Typo.h6">LiveQuiz</MudText></MudLink>
+        <a class="host-brand" href="/">
+            <span class="host-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            LiveQuiz
+        </a>
         @if (ShowAccount)
         {
             <MudButton Href="/host" Color="Color.Inherit" Class="ml-4">Quizzes</MudButton>
@@ -39,6 +42,32 @@
     [Parameter] public bool ShowAccount { get; set; } = true;
 
     private string? _email;
+
+    // Same palette as the public pages (SiteNav, Home, Play) so the whole app reads as one product.
+    private static readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#4757e6",
+            Secondary = "#e0338d",
+            Tertiary = "#19b5a5",
+            Warning = "#ffc933",
+            AppbarBackground = "#1d1a3a",
+            AppbarText = "#ffffff",
+            Background = "#f6f4ff",
+            Surface = "#ffffff",
+            TextPrimary = "#1d1a3a",
+            DrawerBackground = "#ffffff",
+        },
+        Typography = new Typography
+        {
+            Default = new DefaultTypography { FontFamily = ["system-ui", "-apple-system", "Segoe UI", "sans-serif"] },
+            H4 = new H4Typography { FontWeight = "800" },
+            H5 = new H5Typography { FontWeight = "700" },
+            Button = new ButtonTypography { TextTransform = "none", FontWeight = "700" },
+        },
+        LayoutProperties = new LayoutProperties { DefaultBorderRadius = "8px" },
+    };
 
     protected override async Task OnInitializedAsync()
     {

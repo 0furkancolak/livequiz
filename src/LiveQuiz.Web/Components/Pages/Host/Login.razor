@@ -1,8 +1,10 @@
 @page "/host/login"
 @rendermode HostRenderModes.Server
+@using LiveQuiz.Contracts
 @using LiveQuiz.Web.Host
 @inject BrowserApi Browser
 @inject NavigationManager Navigation
+@inject IConfiguration Configuration
 
 <PageTitle>Sign in</PageTitle>
 
@@ -18,6 +20,13 @@
             }
             <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="_busy" FullWidth="true">Sign in</MudButton>
         </EditForm>
+        @if (_demoEnabled)
+        {
+            <MudDivider Class="my-4" />
+            <MudText Typo="Typo.subtitle2">Just looking around?</MudText>
+            <MudText Typo="Typo.body2" Class="mb-2">A demo host with two ready-to-play quizzes is set up.</MudText>
+            <MudButton id="demo-signin" Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" Disabled="_busy" OnClick="SignInAsDemoAsync">Sign in as the demo host</MudButton>
+        }
         <MudText Class="mt-4">No account? <MudLink Href="/host/register">Register</MudLink></MudText>
     </MudPaper>
 </HostShell>
@@ -26,6 +35,17 @@
     private readonly Credentials _model = new();
     private List<string> _errors = [];
     private bool _busy;
+
+    private bool _demoEnabled;
+
+    protected override void OnInitialized() => _demoEnabled = Configuration.GetValue<bool>("Demo:Enabled");
+
+    private async Task SignInAsDemoAsync()
+    {
+        _model.Email = DemoAccount.Email;
+        _model.Password = DemoAccount.Password;
+        await SubmitAsync();
+    }
 
     private async Task SubmitAsync()
     {

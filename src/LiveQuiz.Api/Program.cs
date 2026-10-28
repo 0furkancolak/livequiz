@@ -21,6 +21,12 @@ if (builder.Configuration.GetValue("Database:MigrateOnStartup", builder.Environm
     builder.Services.AddHostedService<MigrationHostedService>();
 }
 
+// Demo host and sample quizzes so a fresh install is playable at once; on in Development, opt-in elsewhere.
+if (builder.Configuration.GetValue("Seed:Demo", builder.Environment.IsDevelopment()))
+{
+    builder.Services.AddHostedService<DemoSeedHostedService>();
+}
+
 builder.Services.AddApiRateLimiting(builder.Configuration);
 builder.AddOrleansSilo();
 builder.Services.AddSignalR().AddOrleans();

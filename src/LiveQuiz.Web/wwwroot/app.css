@@ -38,3 +38,14 @@ h1:focus {
 }
 /* Player and home pages are plain HTML with a light design; keep them readable in dark mode. */
 body:has(.play), body:has(.home) { background: #f6f4ff; color: #1d1a3a; color-scheme: light; }
+
+/* Host panel: brand mark in the app bar matches SiteNav. */
+.host-brand { display: inline-flex; align-items: center; gap: .6rem; color: #fff; text-decoration: none; font-size: 1.25rem; font-weight: 800; letter-spacing: -.01em; }
+.host-mark { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; width: 1.5rem; height: 1.5rem; }
+.host-mark i { border-radius: 3px; }
+.host-mark i:nth-child(1) { background: #e0338d; }
+.host-mark i:nth-child(2) { background: #ffc933; }
+.host-mark i:nth-child(3) { background: #19b5a5; }
+.host-mark i:nth-child(4) { background: #5b6cff; }
+.mud-appbar .mud-button-root { font-weight: 700; }
+.mud-main-content { min-height: calc(100vh - 64px); }
