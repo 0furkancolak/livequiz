@@ -5,6 +5,9 @@
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="LiveQuiz.Web.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\LiveQuiz.Contracts\LiveQuiz.Contracts.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />

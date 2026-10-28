@@ -6,28 +6,28 @@
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 
-<PageTitle>Sign in</PageTitle>
+<PageTitle>@L["Sign in"]</PageTitle>
 
 <HostShell ShowAccount="false">
     <MudPaper Class="pa-6 mx-auto" MaxWidth="420px">
-        <MudText Typo="Typo.h5" Class="mb-4">Host sign in</MudText>
+        <MudText Typo="Typo.h5" Class="mb-4">@L["Host sign in"]</MudText>
         <EditForm Model="_model" OnValidSubmit="SubmitAsync" FormName="login">
-            <MudTextField @bind-Value="_model.Email" Label="Email" InputType="InputType.Email" Required="true" />
-            <MudTextField @bind-Value="_model.Password" Label="Password" InputType="InputType.Password" Required="true" />
+            <MudTextField @bind-Value="_model.Email" Label="@L["Email"]" InputType="InputType.Email" Required="true" />
+            <MudTextField @bind-Value="_model.Password" Label="@L["Password"]" InputType="InputType.Password" Required="true" />
             @foreach (var message in _errors)
             {
                 <MudAlert Severity="Severity.Error" Class="mt-3" role="alert">@message</MudAlert>
             }
-            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="_busy" FullWidth="true">Sign in</MudButton>
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="_busy" FullWidth="true">@L["Sign in"]</MudButton>
         </EditForm>
         @if (_demoEnabled)
         {
             <MudDivider Class="my-4" />
-            <MudText Typo="Typo.subtitle2">Just looking around?</MudText>
-            <MudText Typo="Typo.body2" Class="mb-2">A demo host with two ready-to-play quizzes is set up.</MudText>
-            <MudButton id="demo-signin" Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" Disabled="_busy" OnClick="SignInAsDemoAsync">Sign in as the demo host</MudButton>
+            <MudText Typo="Typo.subtitle2">@L["Just looking around?"]</MudText>
+            <MudText Typo="Typo.body2" Class="mb-2">@L["A demo host with two ready-to-play quizzes is set up."]</MudText>
+            <MudButton id="demo-signin" Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" Disabled="_busy" OnClick="SignInAsDemoAsync">@L["Sign in as the demo host"]</MudButton>
         }
-        <MudText Class="mt-4">No account? <MudLink Href="/host/register">Register</MudLink></MudText>
+        <MudText Class="mt-4">@L["No account?"] <MudLink Href="/host/register">@L["Register"]</MudLink></MudText>
     </MudPaper>
 </HostShell>
 
@@ -59,7 +59,7 @@
             return;
         }
 
-        _errors = ["Invalid email or password."];
+        _errors = [L["Invalid email or password."]];
         _busy = false;
     }
 

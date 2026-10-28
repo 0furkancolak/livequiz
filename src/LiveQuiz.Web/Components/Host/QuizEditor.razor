@@ -2,9 +2,9 @@
 @using LiveQuiz.Web.Host
 
 <MudStack Spacing="3">
-    <MudTextField @bind-Value="Draft.Title" Label="Title" MaxLength="QuizLimits.MaxTitleLength"
+    <MudTextField @bind-Value="Draft.Title" Label="@L["Title"]" MaxLength="QuizLimits.MaxTitleLength"
                   Error="@HasError("Title")" ErrorText="@ErrorText("Title")" />
-    <MudTextField @bind-Value="Draft.Description" Label="Description (optional)" Lines="2" MaxLength="QuizLimits.MaxDescriptionLength"
+    <MudTextField @bind-Value="Draft.Description" Label="@L["Description (optional)"]" Lines="2" MaxLength="QuizLimits.MaxDescriptionLength"
                   Error="@HasError("Description")" ErrorText="@ErrorText("Description")" />
 
     @if (HasError("Questions"))
@@ -20,28 +20,28 @@
 
         <MudPaper Class="pa-4" Outlined="true" data-testid="question">
             <MudStack Row="true" AlignItems="AlignItems.Center">
-                <MudText Typo="Typo.h6">Question @(qi + 1)</MudText>
+                <MudText Typo="Typo.h6">@L.Format("Question {0}", qi + 1)</MudText>
                 <MudSpacer />
-                <MudNumericField @bind-Value="question.TimeLimitSeconds" Label="Seconds" Style="max-width: 120px"
+                <MudNumericField @bind-Value="question.TimeLimitSeconds" Label="@L["Seconds"]" Style="max-width: 120px"
                                  Min="QuizLimits.MinTimeLimitSeconds" Max="QuizLimits.MaxTimeLimitSeconds"
                                  Error="@HasError($"{path}.TimeLimitSeconds")" ErrorText="@ErrorText($"{path}.TimeLimitSeconds")" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Remove question" OnClick="() => RemoveQuestion(qi)"
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="@L["Remove question"]" OnClick="() => RemoveQuestion(qi)"
                                Disabled="Draft.Questions.Count <= 1" />
             </MudStack>
 
-            <MudTextField @bind-Value="question.Text" Label="Question text" MaxLength="QuizLimits.MaxQuestionTextLength"
+            <MudTextField @bind-Value="question.Text" Label="@L["Question text"]" MaxLength="QuizLimits.MaxQuestionTextLength"
                           Error="@HasError($"{path}.Text")" ErrorText="@ErrorText($"{path}.Text")" />
 
-            <MudText Typo="Typo.subtitle2" Class="mt-3">Answers (select the correct one)</MudText>
+            <MudText Typo="Typo.subtitle2" Class="mt-3">@L["Answers (select the correct one)"]</MudText>
             <MudRadioGroup T="int" @bind-Value="question.CorrectIndex">
                 @for (var j = 0; j < question.Options.Count; j++)
                 {
                     var oj = j;
                     <MudStack Row="true" AlignItems="AlignItems.Center">
-                        <MudRadio T="int" Value="oj" aria-label="@($"Mark option {oj + 1} correct")" />
-                        <MudTextField @bind-Value="question.Options[oj].Text" Label="@($"Option {oj + 1}")" MaxLength="QuizLimits.MaxOptionTextLength"
+                        <MudRadio T="int" Value="oj" aria-label="@L.Format("Mark option {0} correct", oj + 1)" />
+                        <MudTextField @bind-Value="question.Options[oj].Text" Label="@L.Format("Option {0}", oj + 1)" MaxLength="QuizLimits.MaxOptionTextLength"
                                       Error="@HasError($"{path}.Options[{oj}].Text")" ErrorText="@ErrorText($"{path}.Options[{oj}].Text")" />
-                        <MudIconButton Icon="@Icons.Material.Filled.Close" aria-label="Remove option" OnClick="() => question.RemoveOption(oj)"
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" aria-label="@L["Remove option"]" OnClick="() => question.RemoveOption(oj)"
                                        Disabled="!question.CanRemoveOption" />
                     </MudStack>
                 }
@@ -50,14 +50,14 @@
             {
                 <MudAlert Severity="Severity.Error" Dense="true" role="alert">@ErrorText($"{path}.Options")</MudAlert>
             }
-            <MudButton Class="mt-2" OnClick="question.AddOption" Disabled="!question.CanAddOption">Add option</MudButton>
+            <MudButton Class="mt-2" OnClick="question.AddOption" Disabled="!question.CanAddOption">@L["Add option"]</MudButton>
         </MudPaper>
     }
 
     <MudStack Row="true">
-        <MudButton OnClick="AddQuestion" Disabled="Draft.Questions.Count >= QuizLimits.MaxQuestions">Add question</MudButton>
+        <MudButton OnClick="AddQuestion" Disabled="Draft.Questions.Count >= QuizLimits.MaxQuestions">@L["Add question"]</MudButton>
         <MudSpacer />
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="Saving">Save quiz</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="Saving">@L["Save quiz"]</MudButton>
     </MudStack>
 </MudStack>
 
@@ -92,5 +92,5 @@
 
     private bool HasError(string key) => Errors.ContainsKey(key);
 
-    private string? ErrorText(string key) => Errors.TryGetValue(key, out var messages) ? string.Join(" ", messages) : null;
+    private string? ErrorText(string key) => Errors.TryGetValue(key, out var messages) ? string.Join(" ", messages.Select(L.Translate)) : null;
 }

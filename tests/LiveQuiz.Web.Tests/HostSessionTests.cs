@@ -1,3 +1,4 @@
+using LiveQuiz.Web.Client.Localization;
 using Bunit;
 using LiveQuiz.Contracts.Game;
 using LiveQuiz.Contracts.Sessions;
@@ -19,6 +20,7 @@ public sealed class HostSessionTests : BunitContext
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddMudServices();
+        Services.AddSingleton(new Loc("en"));
         AddAuthorization().SetAuthorized("host@example.test");
         Services.AddSingleton<IHostSessionClient>(_lobby);
         Services.AddScoped<BrowserApi>();

@@ -1,3 +1,4 @@
+using LiveQuiz.Web.Client.Localization;
 using AngleSharp.Dom;
 using Bunit;
 using LiveQuiz.Contracts.Quizzes;
@@ -14,6 +15,7 @@ public sealed class QuizEditorTests : BunitContext
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddMudServices();
+        Services.AddSingleton(new Loc("en"));
     }
 
     private IRenderedComponent<QuizEditor> RenderEditor(QuizDraft draft, Action<SaveQuizRequest>? onSave = null) =>

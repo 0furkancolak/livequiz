@@ -32,6 +32,14 @@ On a 375 px phone:
 | --- | --- | --- | --- | --- |
 | ![Home](docs/screenshots/mobile-01-home.png) | ![Host sign in](docs/screenshots/mobile-02-host-login.png) | ![Quizzes](docs/screenshots/mobile-03-host-quizzes.png) | ![Quiz editor](docs/screenshots/mobile-05-quiz-editor.png) | ![Player result](docs/screenshots/mobile-04-player-result.png) |
 
+## Languages
+
+The whole UI is available in English and Turkish. The `EN | TR` switch in the navbar sets a `lq-lang` cookie; without it the
+browser's `Accept-Language` decides, and English is the fallback. English text is its own key, so a string without a Turkish
+entry shows in English. Translations live in [Turkish.cs](src/LiveQuiz.Web.Client/Localization/Turkish.cs); the player screen
+(WebAssembly) reads the language the server rendered into `<html lang>`. .NET cultures are not used because the images run with
+invariant globalization.
+
 ## Architecture
 
 ```mermaid

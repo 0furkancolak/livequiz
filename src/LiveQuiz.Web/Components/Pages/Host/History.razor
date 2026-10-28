@@ -7,10 +7,10 @@
 @inject ApiClient Api
 @inject NavigationManager Navigation
 
-<PageTitle>History</PageTitle>
+<PageTitle>@L["History"]</PageTitle>
 
 <HostShell>
-    <MudText Typo="Typo.h4" Class="mb-4">Finished games</MudText>
+    <MudText Typo="Typo.h4" Class="mb-4">@L["Finished games"]</MudText>
 
     @if (_loading)
     {
@@ -22,24 +22,24 @@
     }
     else if (_items.Count == 0)
     {
-        <MudText id="empty-history">No finished games yet.</MudText>
+        <MudText id="empty-history">@L["No finished games yet."]</MudText>
     }
     else
     {
         <MudTable Items="_items" Hover="true" Elevation="1">
             <HeaderContent>
-                <MudTh>Quiz</MudTh>
-                <MudTh>Finished</MudTh>
-                <MudTh>Players</MudTh>
-                <MudTh>Winner</MudTh>
+                <MudTh>@L["Quiz"]</MudTh>
+                <MudTh>@L["Finished"]</MudTh>
+                <MudTh>@L["Players"]</MudTh>
+                <MudTh>@L["Winner"]</MudTh>
                 <MudTh></MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="Quiz">@context.QuizTitle</MudTd>
-                <MudTd DataLabel="Finished">@context.FinishedAtUtc.ToLocalTime().ToString("g")</MudTd>
-                <MudTd DataLabel="Players">@context.PlayerCount</MudTd>
-                <MudTd DataLabel="Winner">@(context.Winner ?? "—")</MudTd>
-                <MudTd><MudButton Href="@($"/host/history/{context.Id}")" Size="Size.Small">Details</MudButton></MudTd>
+                <MudTd DataLabel="@L["Quiz"]">@context.QuizTitle</MudTd>
+                <MudTd DataLabel="@L["Finished"]">@context.FinishedAtUtc.ToLocalTime().ToString("g")</MudTd>
+                <MudTd DataLabel="@L["Players"]">@context.PlayerCount</MudTd>
+                <MudTd DataLabel="@L["Winner"]">@(context.Winner ?? "—")</MudTd>
+                <MudTd><MudButton Href="@($"/host/history/{context.Id}")" Size="Size.Small">@L["Details"]</MudButton></MudTd>
             </RowTemplate>
         </MudTable>
     }
@@ -59,7 +59,7 @@
             return;
         }
 
-        _error = result.IsSuccess ? null : "Could not load the history.";
+        _error = result.IsSuccess ? null : L["Could not load the history."];
         _items = result.Value ?? [];
         _loading = false;
     }

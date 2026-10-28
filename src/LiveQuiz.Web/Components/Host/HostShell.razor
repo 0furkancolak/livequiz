@@ -1,3 +1,4 @@
+@using LiveQuiz.Web.Client.Layout
 @using LiveQuiz.Web.Host
 @using LiveQuiz.Web.Services
 @inject BrowserApi Browser
@@ -17,15 +18,16 @@
         </a>
         @if (ShowAccount)
         {
-            <MudButton Href="/host" Color="Color.Inherit" Class="ml-4 host-quizzes">Quizzes</MudButton>
-            <MudButton Href="/host/history" Color="Color.Inherit">History</MudButton>
+            <MudButton Href="/host" Color="Color.Inherit" Class="ml-4 host-quizzes">@L["Quizzes"]</MudButton>
+            <MudButton Href="/host/history" Color="Color.Inherit">@L["History"]</MudButton>
         }
         <MudSpacer />
-        <MudButton Href="/play" Color="Color.Inherit" Class="host-join">Join a game</MudButton>
+        <MudButton Href="/play" Color="Color.Inherit" Class="host-join">@L["Join a game"]</MudButton>
+        <LanguageSwitch />
         @if (ShowAccount && _email is not null)
         {
             <MudText Class="mr-4 host-email">@_email</MudText>
-            <MudButton Color="Color.Inherit" OnClick="SignOutAsync">Sign out</MudButton>
+            <MudButton Color="Color.Inherit" OnClick="SignOutAsync">@L["Sign out"]</MudButton>
         }
     </MudAppBar>
     <MudMainContent>

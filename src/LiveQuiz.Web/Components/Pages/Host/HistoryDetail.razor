@@ -6,7 +6,7 @@
 @using LiveQuiz.Web.Services
 @inject ApiClient Api
 
-<PageTitle>Game details</PageTitle>
+<PageTitle>@L["Game details"]</PageTitle>
 
 <HostShell>
     @if (_loading)
@@ -15,15 +15,15 @@
     }
     else if (_detail is null)
     {
-        <MudAlert Severity="Severity.Error" role="alert">This game was not found.</MudAlert>
-        <MudButton Href="/host/history" Class="mt-4">Back to history</MudButton>
+        <MudAlert Severity="Severity.Error" role="alert">@L["This game was not found."]</MudAlert>
+        <MudButton Href="/host/history" Class="mt-4">@L["Back to history"]</MudButton>
     }
     else
     {
         <MudText Typo="Typo.h4">@_detail.QuizTitle</MudText>
         <MudText Class="mb-4">@_detail.FinishedAtUtc.ToLocalTime().ToString("g")</MudText>
 
-        <MudText Typo="Typo.h6">Standings</MudText>
+        <MudText Typo="Typo.h6">@L["Standings"]</MudText>
         <MudSimpleTable id="standings" Class="mb-6">
             <tbody>
                 @foreach (var s in _detail.Standings)
@@ -33,13 +33,13 @@
             </tbody>
         </MudSimpleTable>
 
-        <MudText Typo="Typo.h6">Questions</MudText>
+        <MudText Typo="Typo.h6">@L["Questions"]</MudText>
         @foreach (var q in _detail.Questions)
         {
             <MudText Class="mt-2"><b>@(q.Index + 1). @q.Text</b></MudText>
-            <MudText Typo="Typo.body2">Answers per option: @string.Join(" · ", q.OptionCounts.Select((n, i) => $"{(char)('A' + i)}{(i == q.CorrectIndex ? "✓" : "")} {n}"))</MudText>
+            <MudText Typo="Typo.body2">@L.Format("Answers per option: {0}", string.Join(" · ", q.OptionCounts.Select((n, i) => $"{(char)('A' + i)}{(i == q.CorrectIndex ? "✓" : "")} {n}")))</MudText>
         }
-        <MudButton Href="/host/history" Class="mt-4">Back to history</MudButton>
+        <MudButton Href="/host/history" Class="mt-4">@L["Back to history"]</MudButton>
     }
 </HostShell>
 

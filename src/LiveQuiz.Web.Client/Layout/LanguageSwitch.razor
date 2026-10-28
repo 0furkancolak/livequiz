@@ -1,0 +1,14 @@
+@inject NavigationManager Navigation
+
+<span class="lang-switch" role="group" aria-label="@L["Language"]">
+    @foreach (var lang in Loc.Supported)
+    {
+        <a href="@HrefFor(lang)" lang="@lang" data-enhance-nav="false"
+           aria-current="@(lang == L.Language ? "true" : null)">@lang.ToUpperInvariant()</a>
+    }
+</span>
+
+@code {
+    private string HrefFor(string language) =>
+        $"/lang/{language}?returnUrl={Uri.EscapeDataString("/" + Navigation.ToBaseRelativePath(Navigation.Uri))}";
+}

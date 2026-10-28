@@ -9,13 +9,13 @@
 @inject IDialogService Dialogs
 @inject ISnackbar Snackbar
 
-<PageTitle>My quizzes</PageTitle>
+<PageTitle>@L["My quizzes"]</PageTitle>
 
 <HostShell>
     <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
-        <MudText Typo="Typo.h4" Class="mb-0">My quizzes</MudText>
+        <MudText Typo="Typo.h4" Class="mb-0">@L["My quizzes"]</MudText>
         <MudSpacer />
-        <MudButton Href="/host/quizzes/new" Variant="Variant.Filled" Color="Color.Primary">New quiz</MudButton>
+        <MudButton Href="/host/quizzes/new" Variant="Variant.Filled" Color="Color.Primary">@L["New quiz"]</MudButton>
     </MudStack>
 
     @if (_loading)
@@ -28,25 +28,25 @@
     }
     else if (_quizzes.Count == 0)
     {
-        <MudText id="empty-state">You have no quizzes yet. Create your first one.</MudText>
+        <MudText id="empty-state">@L["You have no quizzes yet. Create your first one."]</MudText>
     }
     else
     {
         <MudTable Items="_quizzes" Hover="true" Elevation="1">
             <HeaderContent>
-                <MudTh>Title</MudTh>
-                <MudTh>Questions</MudTh>
-                <MudTh>Updated</MudTh>
+                <MudTh>@L["Title"]</MudTh>
+                <MudTh>@L["Questions"]</MudTh>
+                <MudTh>@L["Updated"]</MudTh>
                 <MudTh></MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="Title">@context.Title</MudTd>
-                <MudTd DataLabel="Questions">@context.QuestionCount</MudTd>
-                <MudTd DataLabel="Updated">@context.UpdatedAtUtc.ToLocalTime().ToString("g")</MudTd>
+                <MudTd DataLabel="@L["Title"]">@context.Title</MudTd>
+                <MudTd DataLabel="@L["Questions"]">@context.QuestionCount</MudTd>
+                <MudTd DataLabel="@L["Updated"]">@context.UpdatedAtUtc.ToLocalTime().ToString("g")</MudTd>
                 <MudTd>
-                    <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" OnClick="() => StartAsync(context)" Disabled="@(context.QuestionCount == 0)" aria-label="@($"Start session for {context.Title}")" />
-                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Href="@($"/host/quizzes/{context.Id}")" aria-label="@($"Edit {context.Title}")" />
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="() => DeleteAsync(context)" aria-label="@($"Delete {context.Title}")" />
+                    <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" OnClick="() => StartAsync(context)" Disabled="@(context.QuestionCount == 0)" aria-label="@L.Format("Start session for {0}", context.Title)" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Href="@($"/host/quizzes/{context.Id}")" aria-label="@L.Format("Edit {0}", context.Title)" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="() => DeleteAsync(context)" aria-label="@L.Format("Delete {0}", context.Title)" />
                 </MudTd>
             </RowTemplate>
         </MudTable>
@@ -69,7 +69,7 @@
             return;
         }
 
-        _error = result.IsSuccess ? null : "Could not load quizzes.";
+        _error = result.IsSuccess ? null : L["Could not load quizzes."];
         _quizzes = result.Value ?? [];
         _loading = false;
     }
@@ -80,13 +80,13 @@
         if (result.IsSuccess && result.Value is { } session)
             Navigation.NavigateTo($"/host/sessions/{session.SessionId}");
         else
-            Snackbar.Add("Could not start a session.", Severity.Error);
+            Snackbar.Add(L["Could not start a session."], Severity.Error);
     }
 
     private async Task DeleteAsync(QuizSummary quiz)
     {
         var confirmed = await Dialogs.ShowMessageBoxAsync(
-            "Delete quiz", $"Delete \"{quiz.Title}\" and all its questions?", yesText: "Delete", cancelText: "Cancel");
+            L["Delete quiz"], L.Format("Delete \"{0}\" and all its questions?", quiz.Title), yesText: L["Delete"], cancelText: L["Cancel"]);
         if (confirmed != true)
             return;
 
@@ -94,6 +94,6 @@
         if (result.IsSuccess || result.IsNotFound)
             _quizzes.Remove(quiz);
         else
-            Snackbar.Add("Could not delete the quiz.", Severity.Error);
+            Snackbar.Add(L["Could not delete the quiz."], Severity.Error);
     }
 }

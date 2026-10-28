@@ -4,22 +4,22 @@
 @inject BrowserApi Browser
 @inject NavigationManager Navigation
 
-<PageTitle>Register</PageTitle>
+<PageTitle>@L["Register"]</PageTitle>
 
 <HostShell ShowAccount="false">
     <MudPaper Class="pa-6 mx-auto" MaxWidth="420px">
-        <MudText Typo="Typo.h5" Class="mb-4">Create a host account</MudText>
+        <MudText Typo="Typo.h5" Class="mb-4">@L["Create a host account"]</MudText>
         <EditForm Model="_model" OnValidSubmit="SubmitAsync" FormName="register">
-            <MudTextField @bind-Value="_model.Email" Label="Email" InputType="InputType.Email" Required="true" />
-            <MudTextField @bind-Value="_model.Password" Label="Password" InputType="InputType.Password" Required="true"
-                          HelperText="At least 8 characters, with upper and lower case letters, a digit and a symbol." />
+            <MudTextField @bind-Value="_model.Email" Label="@L["Email"]" InputType="InputType.Email" Required="true" />
+            <MudTextField @bind-Value="_model.Password" Label="@L["Password"]" InputType="InputType.Password" Required="true"
+                          HelperText="@L["At least 8 characters, with upper and lower case letters, a digit and a symbol."]" />
             @foreach (var message in _errors)
             {
                 <MudAlert Severity="Severity.Error" Class="mt-3" role="alert">@message</MudAlert>
             }
-            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="_busy" FullWidth="true">Register</MudButton>
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="_busy" FullWidth="true">@L["Register"]</MudButton>
         </EditForm>
-        <MudText Class="mt-4">Already registered? <MudLink Href="/host/login">Sign in</MudLink></MudText>
+        <MudText Class="mt-4">@L["Already registered?"] <MudLink Href="/host/login">@L["Sign in"]</MudLink></MudText>
     </MudPaper>
 </HostShell>
 
@@ -36,7 +36,7 @@
         var register = await Browser.PostJsonAsync("/api/auth/register", new { email = _model.Email, password = _model.Password });
         if (!register.Ok)
         {
-            _errors = register.Messages.Count > 0 ? register.Messages.ToList() : ["Registration failed."];
+            _errors = register.Messages.Count > 0 ? register.Messages.Select(L.Translate).ToList() : [L["Registration failed."]];
             _busy = false;
             return;
         }

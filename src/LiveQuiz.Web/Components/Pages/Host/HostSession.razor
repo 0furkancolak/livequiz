@@ -11,13 +11,13 @@
 @inject ApiClient Api
 @inject NavigationManager Navigation
 
-<PageTitle>Session</PageTitle>
+<PageTitle>@L["Session"]</PageTitle>
 
 <HostShell>
     @if (_error is not null)
     {
         <MudAlert Severity="Severity.Error" role="alert">@_error</MudAlert>
-        <MudButton Href="/host" Class="mt-4">Back to my quizzes</MudButton>
+        <MudButton Href="/host" Class="mt-4">@L["Back to my quizzes"]</MudButton>
     }
     else if (_snapshot is null)
     {
@@ -27,7 +27,7 @@
     {
         @if (_reconnecting)
         {
-            <MudAlert id="reconnecting" Severity="Severity.Warning" Class="mb-3">Connection lost — reconnecting…</MudAlert>
+            <MudAlert id="reconnecting" Severity="Severity.Warning" Class="mb-3">@L["Connection lost — reconnecting…"]</MudAlert>
         }
 
         @if (_commandError is not null)
@@ -39,21 +39,21 @@
         {
             case Phase.Lobby:
                 <MudText Typo="Typo.h6">@_snapshot.QuizTitle</MudText>
-                <MudText Typo="Typo.subtitle1">Join at <b>/play</b> with PIN</MudText>
+                <MudText Typo="Typo.subtitle1">@((MarkupString)L["Join at <b>/play</b> with PIN"])</MudText>
                 <MudText id="session-pin" Typo="Typo.h1" Class="my-4" Style="letter-spacing: .2em">@_snapshot.Pin</MudText>
 
                 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
-                    <MudText id="lobby-count" Typo="Typo.h5">@_players.Count @(_players.Count == 1 ? "player" : "players")</MudText>
+                    <MudText id="lobby-count" Typo="Typo.h5">@_players.Count @L[_players.Count == 1 ? "player" : "players"]</MudText>
                     <MudSpacer />
                     <MudButton id="start-game" Color="Color.Primary" Variant="Variant.Filled" OnClick="StartAsync"
-                               Disabled="@(_players.Count == 0 || _busy)">Start game</MudButton>
-                    <MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="CancelAsync" Disabled="_busy" Class="ml-2">Cancel session</MudButton>
+                               Disabled="@(_players.Count == 0 || _busy)">@L["Start game"]</MudButton>
+                    <MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="CancelAsync" Disabled="_busy" Class="ml-2">@L["Cancel session"]</MudButton>
                 </MudStack>
 
                 <MudPaper Class="pa-3" Elevation="1" aria-live="polite">
                     @if (_players.Count == 0)
                     {
-                        <MudText Color="Color.Secondary">Waiting for players to join…</MudText>
+                        <MudText Color="Color.Secondary">@L["Waiting for players to join…"]</MudText>
                     }
                     else
                     {
@@ -69,9 +69,9 @@
 
             case Phase.Question:
                 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
-                    <MudText id="question-progress" Typo="Typo.subtitle1">Question @(_question!.Index + 1) of @_question!.Total</MudText>
+                    <MudText id="question-progress" Typo="Typo.subtitle1">@L.Format("Question {0} of {1}", _question!.Index + 1, _question!.Total)</MudText>
                     <MudSpacer />
-                    <MudText id="countdown" Typo="Typo.h4">@RemainingSeconds s</MudText>
+                    <MudText id="countdown" Typo="Typo.h4">@L.Format("{0} s", RemainingSeconds)</MudText>
                 </MudStack>
                 <MudText id="question-text" Typo="Typo.h4" Class="mb-4">@_question!.Text</MudText>
                 <MudGrid>
@@ -83,11 +83,11 @@
                         </MudItem>
                     }
                 </MudGrid>
-                <MudText id="answer-count" Typo="Typo.h6" Class="mt-4">@_answered of @_players.Count answered</MudText>
+                <MudText id="answer-count" Typo="Typo.h6" Class="mt-4">@L.Format("{0} of {1} answered", _answered, _players.Count)</MudText>
                 break;
 
             case Phase.Results:
-                <MudText Typo="Typo.subtitle1">Question @(_results!.Index + 1) of @_results!.Total</MudText>
+                <MudText Typo="Typo.subtitle1">@L.Format("Question {0} of {1}", _results!.Index + 1, _results!.Total)</MudText>
                 <MudText id="question-text" Typo="Typo.h5" Class="mb-3">@_question!.Text</MudText>
                 @for (var i = 0; i < _question!.Options.Count; i++)
                 {
@@ -99,7 +99,7 @@
                         <MudProgressLinear Value="@Percent(count)" Color="@(isCorrect ? Color.Success : Color.Default)" Rounded="true" />
                     </div>
                 }
-                <MudText Typo="Typo.h6" Class="mt-4">Leaderboard</MudText>
+                <MudText Typo="Typo.h6" Class="mt-4">@L["Leaderboard"]</MudText>
                 <MudSimpleTable Dense="true" id="leaderboard">
                     <tbody>
                         @foreach (var s in _results!.Top)
@@ -109,12 +109,12 @@
                     </tbody>
                 </MudSimpleTable>
                 <MudButton id="next-question" Color="Color.Primary" Variant="Variant.Filled" Class="mt-4" OnClick="NextAsync" Disabled="_busy">
-                    @(_results!.IsLast ? "Show final results" : "Next question")
+                    @L[_results!.IsLast ? "Show final results" : "Next question"]
                 </MudButton>
                 break;
 
             case Phase.Finished:
-                <MudText id="finished" Typo="Typo.h3" Class="mb-3">Final results</MudText>
+                <MudText id="finished" Typo="Typo.h3" Class="mb-3">@L["Final results"]</MudText>
                 <MudSimpleTable id="podium">
                     <tbody>
                         @foreach (var s in _final!.Top)
@@ -123,7 +123,7 @@
                         }
                     </tbody>
                 </MudSimpleTable>
-                <MudButton Href="/host" Class="mt-4" Variant="Variant.Filled" Color="Color.Primary">Back to my quizzes</MudButton>
+                <MudButton Href="/host" Class="mt-4" Variant="Variant.Filled" Color="Color.Primary">@L["Back to my quizzes"]</MudButton>
                 break;
         }
     }
@@ -175,7 +175,7 @@
         }
         catch (Exception ex) when (ex is Microsoft.AspNetCore.SignalR.HubException or HttpRequestException or InvalidOperationException)
         {
-            _error = "This session is not available. It may have ended.";
+            _error = L["This session is not available. It may have ended."];
         }
     }
 
@@ -236,7 +236,7 @@
     {
         StopTicker();
         _reconnecting = false;
-        _error = "The connection to this session was lost. Reload the page to reconnect.";
+        _error = L["The connection to this session was lost. Reload the page to reconnect."];
         StateHasChanged();
     });
 
@@ -254,7 +254,7 @@
         }
         catch (Microsoft.AspNetCore.SignalR.HubException ex)
         {
-            _commandError = ex.Message;
+            _commandError = L.Translate(ex.Message);
         }
         finally
         {

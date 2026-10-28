@@ -8,7 +8,7 @@
 @using LiveQuiz.Web.Client.Layout
 @inject IPlayerSessionClient Session
 
-<PageTitle>Play</PageTitle>
+<PageTitle>@L["Play"]</PageTitle>
 
 <SiteNav />
 
@@ -17,41 +17,41 @@
 
     @if (_reconnecting)
     {
-        <p id="reconnecting" class="banner" role="status">Connection lost — reconnecting…</p>
+        <p id="reconnecting" class="banner" role="status">@L["Connection lost — reconnecting…"]</p>
     }
 
     @switch (_phase)
     {
         case Phase.Join:
             <form @onsubmit="JoinAsync" novalidate>
-                <label for="pin">Game PIN</label>
+                <label for="pin">@L["Game PIN"]</label>
                 <input id="pin" @bind="_pin" @bind:event="oninput" inputmode="numeric" autocomplete="off"
                        maxlength="@SessionLimits.PinLength" aria-describedby="pin-error" />
                 <p id="pin-error" class="error" role="alert">@_pinError</p>
 
-                <label for="nickname">Nickname</label>
+                <label for="nickname">@L["Nickname"]</label>
                 <input id="nickname" @bind="_nickname" @bind:event="oninput" autocomplete="off"
                        maxlength="@SessionLimits.MaxNickname" aria-describedby="nickname-error" />
                 <p id="nickname-error" class="error" role="alert">@_nicknameError</p>
 
                 <p class="error" role="alert">@_error</p>
-                <button type="submit" disabled="@_busy">@(_busy ? "Joining…" : "Join")</button>
+                <button type="submit" disabled="@_busy">@L[_busy ? "Joining…" : "Join"]</button>
             </form>
             break;
 
         case Phase.Lobby:
             <section aria-live="polite">
-                <h2 id="welcome">You're in, @_nicknameShown</h2>
-                <p id="player-count">@_count @(_count == 1 ? "player" : "players") in the lobby</p>
-                <p>Waiting for the host to start the game…</p>
+                <h2 id="welcome">@L.Format("You're in, {0}", _nicknameShown)</h2>
+                <p id="player-count">@L.Format(_count == 1 ? "{0} player in the lobby" : "{0} players in the lobby", _count)</p>
+                <p>@L["Waiting for the host to start the game…"]</p>
             </section>
             break;
 
         case Phase.Question:
             <section>
-                <p id="question-progress">Question @(_question!.Index + 1) of @_question.Total</p>
+                <p id="question-progress">@L.Format("Question {0} of {1}", _question!.Index + 1, _question.Total)</p>
                 <h2 id="question-text">@_question.Text</h2>
-                <p id="countdown" aria-hidden="true">@RemainingSeconds s</p>
+                <p id="countdown" aria-hidden="true">@L.Format("{0} s", RemainingSeconds)</p>
                 <div class="options">
                     @for (var i = 0; i < _question.Options.Count; i++)
                     {
@@ -70,30 +70,30 @@
             <section aria-live="polite">
                 @if (_result is null)
                 {
-                    <h2 id="result-pending">Time's up!</h2>
+                    <h2 id="result-pending">@L["Time's up!"]</h2>
                 }
                 else
                 {
                     <h2 id="result-headline" class="@(_result.Correct ? "correct" : "wrong")">
-                        @(_result.Correct ? "Correct!" : _result.Answered ? "Wrong" : "No answer")
+                        @L[_result.Correct ? "Correct!" : _result.Answered ? "Wrong" : "No answer"]
                     </h2>
-                    <p id="result-points">+@_result.Points points · @_result.TotalPoints total</p>
-                    <p id="result-rank">Rank @_result.Rank of @_result.PlayerCount</p>
+                    <p id="result-points">@L.Format("+{0} points · {1} total", _result.Points, _result.TotalPoints)</p>
+                    <p id="result-rank">@L.Format("Rank {0} of {1}", _result.Rank, _result.PlayerCount)</p>
                 }
                 @if (_results is not null && _question is not null)
                 {
-                    <p id="correct-answer">Correct answer: <b>@_question.Options[_results.CorrectIndex]</b></p>
+                    <p id="correct-answer">@L["Correct answer:"] <b>@_question.Options[_results.CorrectIndex]</b></p>
                 }
-                <p>Waiting for the next question…</p>
+                <p>@L["Waiting for the next question…"]</p>
             </section>
             break;
 
         case Phase.Finished:
             <section>
-                <h2 id="finished">Game over</h2>
+                <h2 id="finished">@L["Game over"]</h2>
                 @if (_result is not null)
                 {
-                    <p id="final-rank">You finished #@_result.Rank with @_result.TotalPoints points.</p>
+                    <p id="final-rank">@L.Format("You finished #{0} with {1} points.", _result.Rank, _result.TotalPoints)</p>
                 }
                 <ol id="podium">
                     @foreach (var s in _final!.Top.Take(5))
@@ -101,19 +101,19 @@
                         <li>#@s.Rank @s.Nickname — @s.Points</li>
                     }
                 </ol>
-                <button type="button" @onclick="Reset">Join another game</button>
+                <button type="button" @onclick="Reset">@L["Join another game"]</button>
             </section>
             break;
 
         case Phase.Cancelled:
             <section>
-                <h2 id="cancelled">The host closed this game.</h2>
-                <button type="button" @onclick="Reset">Join another game</button>
+                <h2 id="cancelled">@L["The host closed this game."]</h2>
+                <button type="button" @onclick="Reset">@L["Join another game"]</button>
             </section>
             break;
     }
 
-    <p class="runtime">Running in browser: <span id="is-wasm">@OperatingSystem.IsBrowser()</span></p>
+    <p class="runtime">@L["Running in browser:"] <span id="is-wasm">@OperatingSystem.IsBrowser()</span></p>
 </main>
 
 @code {
@@ -176,10 +176,10 @@
 
         var pin = _pin.Trim();
         if (pin.Length != SessionLimits.PinLength || !pin.All(char.IsAsciiDigit))
-            _pinError = $"The PIN has {SessionLimits.PinLength} digits.";
+            _pinError = L.Format("The PIN has {0} digits.", SessionLimits.PinLength);
         var nicknameCheck = NicknamePolicy.Validate(_nickname);
         if (nicknameCheck != NicknameError.None)
-            _nicknameError = NicknamePolicy.Message(nicknameCheck);
+            _nicknameError = L.Translate(NicknamePolicy.Message(nicknameCheck));
         if (_pinError is not null || _nicknameError is not null)
             return;
 
@@ -193,9 +193,9 @@
                 StateHasChanged();
             }
             else if (attempt.NicknameProblem)
-                _nicknameError = attempt.Error;
+                _nicknameError = L.Translate(attempt.Error);
             else
-                _error = attempt.Error;
+                _error = L.Translate(attempt.Error);
         }
         finally
         {
@@ -242,7 +242,7 @@
         _results = null;
         _result = null;
         _chosen = chosen;
-        _answerMessage = chosen is null ? null : "Answer locked in!";
+        _answerMessage = chosen is null ? null : L["Answer locked in!"];
         _clock.Restart();
         _ticker?.Dispose();
         _ticker = new Timer(_ => InvokeAsync(StateHasChanged), null, 250, 250);
@@ -258,10 +258,10 @@
         var status = await Session.SubmitAnswerAsync(_question.Index, index);
         _answerMessage = status switch
         {
-            AnswerStatus.Accepted => "Answer locked in!",
-            AnswerStatus.TooLate => "Too late — the question has closed.",
-            AnswerStatus.RateLimited => "Slow down — too many taps.",
-            _ => "Your answer could not be accepted."
+            AnswerStatus.Accepted => L["Answer locked in!"],
+            AnswerStatus.TooLate => L["Too late — the question has closed."],
+            AnswerStatus.RateLimited => L["Slow down — too many taps."],
+            _ => L["Your answer could not be accepted."]
         };
     }
 
@@ -294,7 +294,7 @@
         StopTicker();
         _reconnecting = false;
         _phase = Phase.Join;
-        _error = "The connection to the game was lost. Reload this page to rejoin.";
+        _error = L["The connection to the game was lost. Reload this page to rejoin."];
         StateHasChanged();
     });
 

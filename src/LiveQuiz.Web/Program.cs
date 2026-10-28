@@ -1,4 +1,5 @@
 using LiveQuiz.ServiceDefaults;
+using LiveQuiz.Web.Client.Localization;
 using LiveQuiz.Web.Components;
 using LiveQuiz.Web.Services;
 using Microsoft.AspNetCore.Identity;
@@ -14,6 +15,8 @@ builder.Services.AddRazorComponents()
     .AddInteractiveWebAssemblyComponents();
 
 builder.Services.AddMudServices();
+builder.Services.AddScoped(sp => new Loc(LanguageResolver.Resolve(sp.GetRequiredService<IHttpContextAccessor>().HttpContext)));
+builder.Services.AddScoped<Microsoft.AspNetCore.Components.Server.Circuits.CircuitHandler, LocCircuitHandler>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddAuthorization();
@@ -103,6 +106,17 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapDefaultEndpoints();
+app.MapGet("/lang/{code}", (string code, string? returnUrl, HttpContext context) =>
+{
+    var language = Loc.Normalize(code);
+    context.Response.Cookies.Append(
+        LanguageResolver.CookieName,
+        language,
+        new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), IsEssential = true, SameSite = SameSiteMode.Lax, Path = "/" });
+    // Local paths only, so the endpoint cannot be used as an open redirect.
+    var target = returnUrl is { Length: > 0 } && returnUrl[0] == '/' && !returnUrl.StartsWith("//") && !returnUrl.StartsWith("/\\") ? returnUrl : "/";
+    return Results.LocalRedirect(target);
+}).ExcludeFromDescription();
 app.MapReverseProxy();
 app.MapStaticAssets();
 app.MapRazorComponents<App>()

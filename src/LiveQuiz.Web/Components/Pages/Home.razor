@@ -3,47 +3,47 @@
 @using LiveQuiz.Contracts.Sessions
 @inject IConfiguration Configuration
 
-<PageTitle>LiveQuiz – play quizzes together</PageTitle>
+<PageTitle>@L["LiveQuiz – play quizzes together"]</PageTitle>
 
 <SiteNav />
 
 <main class="home">
     <section class="hero">
         <div>
-            <h1>Quizzes that run on everyone's phone.</h1>
-            <p class="lead">Hosts write the questions. Players join with a PIN, answer against the clock and watch the leaderboard move.</p>
+            <h1>@L["Quizzes that run on everyone's phone."]</h1>
+            <p class="lead">@L["Hosts write the questions. Players join with a PIN, answer against the clock and watch the leaderboard move."]</p>
         </div>
         <form class="join" method="get" action="/play">
-            <h2>Got a PIN?</h2>
-            <label for="home-pin">Game PIN</label>
+            <h2>@L["Got a PIN?"]</h2>
+            <label for="home-pin">@L["Game PIN"]</label>
             <input id="home-pin" name="pin" inputmode="numeric" autocomplete="off" maxlength="@SessionLimits.PinLength" placeholder="123456" required />
-            <button type="submit">Join the game</button>
-            <p class="hint">No account needed. You only pick a nickname.</p>
+            <button type="submit">@L["Join the game"]</button>
+            <p class="hint">@L["No account needed. You only pick a nickname."]</p>
         </form>
     </section>
 
     <section id="how" class="how">
-        <h2>Start a game in three steps</h2>
+        <h2>@L["Start a game in three steps"]</h2>
         <ol>
             <li class="step a">
-                <h3>Write a quiz</h3>
-                <p>Sign in as a host, add questions with up to four answers and a time limit for each.</p>
+                <h3>@L["Write a quiz"]</h3>
+                <p>@L["Sign in as a host, add questions with up to four answers and a time limit for each."]</p>
             </li>
             <li class="step b">
-                <h3>Share the PIN</h3>
-                <p>Start a game and read out the six-digit PIN. Players appear in the lobby as they join.</p>
+                <h3>@L["Share the PIN"]</h3>
+                <p>@L["Start a game and read out the six-digit PIN. Players appear in the lobby as they join."]</p>
             </li>
             <li class="step c">
-                <h3>Play and review</h3>
-                <p>Reveal each question, show the standings, and open the finished game from your history.</p>
+                <h3>@L["Play and review"]</h3>
+                <p>@L["Reveal each question, show the standings, and open the finished game from your history."]</p>
             </li>
         </ol>
         <div class="actions">
-            <a class="primary" href="/host/register">Create a host account</a>
-            <a class="secondary" href="/host/login">Sign in</a>
+            <a class="primary" href="/host/register">@L["Create a host account"]</a>
+            <a class="secondary" href="/host/login">@L["Sign in"]</a>
             @if (Configuration.GetValue<bool>("Demo:Enabled"))
             {
-                <a class="secondary" href="/host/login">Try the demo host</a>
+                <a class="secondary" href="/host/login">@L["Try the demo host"]</a>
             }
         </div>
     </section>

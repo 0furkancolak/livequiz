@@ -9,16 +9,16 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 
-<PageTitle>@(Id is null ? "New quiz" : "Edit quiz")</PageTitle>
+<PageTitle>@(Id is null ? L["New quiz"] : L["Edit quiz"])</PageTitle>
 
 <HostShell>
-    <MudText Typo="Typo.h4" Class="mb-4">@(Id is null ? "New quiz" : "Edit quiz")</MudText>
+    <MudText Typo="Typo.h4" Class="mb-4">@(Id is null ? L["New quiz"] : L["Edit quiz"])</MudText>
 
     @if (_draft is null)
     {
         @if (_notFound)
         {
-            <MudAlert Severity="Severity.Warning" role="alert">Quiz not found.</MudAlert>
+            <MudAlert Severity="Severity.Warning" role="alert">@L["Quiz not found."]</MudAlert>
         }
         else
         {
@@ -74,13 +74,13 @@
         }
         else if (result.IsSuccess)
         {
-            Snackbar.Add("Quiz saved.", Severity.Success);
+            Snackbar.Add(L["Quiz saved."], Severity.Success);
             Navigation.NavigateTo("/host");
         }
         else
         {
             _serverErrors = result.Errors;
-            Snackbar.Add("Could not save the quiz.", Severity.Error);
+            Snackbar.Add(L["Could not save the quiz."], Severity.Error);
         }
     }
 }

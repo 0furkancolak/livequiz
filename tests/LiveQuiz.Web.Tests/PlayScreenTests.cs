@@ -1,3 +1,4 @@
+using LiveQuiz.Web.Client.Localization;
 using Bunit;
 using LiveQuiz.Contracts.Game;
 using LiveQuiz.Contracts.Sessions;
@@ -15,6 +16,7 @@ public sealed class PlayScreenTests : BunitContext
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddSingleton<IPlayerSessionClient>(_client);
+        Services.AddSingleton(new Loc("en"));
     }
 
     private IRenderedComponent<Play> RenderPlay() => Render<Play>();
