@@ -42,11 +42,13 @@ public static class OrleansSetup
                         o.Invariant = PostgresInvariant;
                         o.ConnectionString = connectionString;
                     });
-                    // Every instance needs its own ports; the orchestrator hands them out.
+                    // Every instance needs its own ports; the orchestrator hands them out. On one machine the silos
+                    // find each other on loopback; in containers Cluster:AdvertisedHost names the address the others use.
                     silo.ConfigureEndpoints(
-                        IPAddress.Loopback,
+                        ResolveAdvertisedAddress(section["AdvertisedHost"]),
                         section.GetValue<int>("SiloPort"),
-                        section.GetValue<int>("GatewayPort"));
+                        section.GetValue<int>("GatewayPort"),
+                        listenOnAnyHostAddress: section["AdvertisedHost"] is { Length: > 0 });
                     break;
                 default:
                     throw new InvalidOperationException($"Cluster:Provider must be Localhost or AdoNet, not '{clustering}'.");
@@ -70,4 +72,9 @@ public static class OrleansSetup
         });
         return builder;
     }
+
+    private static IPAddress ResolveAdvertisedAddress(string? host) =>
+        string.IsNullOrWhiteSpace(host)
+            ? IPAddress.Loopback
+            : Dns.GetHostAddresses(host).First(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
 }

@@ -1,0 +1,17 @@
+# Build context: the repository root.   docker build -f docker/Dockerfile.api -t livequiz-api .
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY global.json Directory.Build.props Directory.Packages.props LiveQuiz.sln ./
+COPY src/ src/
+RUN dotnet publish src/LiveQuiz.Api/LiveQuiz.Api.csproj -c Release -o /app /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+# Shared Data Protection key ring (a volume mounted here keeps the ownership set below).
+RUN mkdir /keys && chown app /keys
+COPY --from=build /app .
+USER app
+ENV ASPNETCORE_HTTP_PORTS=8080 \
+    DataProtection__KeysPath=/keys
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "LiveQuiz.Api.dll"]
