@@ -62,6 +62,7 @@ public static class NicknamePolicy
 
     private static bool IsAllowed(char c) => char.IsLetterOrDigit(c) || c is ' ' or '_' or '-' or '.';
 
+    // Explicit Turkish/German folds first: string normalization is a no-op under invariant globalization (e.g. WASM, trimmed hosts).
     private static string Fold(string value)
     {
         var sb = new StringBuilder(value.Length);
@@ -70,9 +71,14 @@ public static class NicknamePolicy
             switch (c)
             {
                 case 'ı' or 'İ': sb.Append('i'); break;
+                case 'ş' or 'Ş': sb.Append('s'); break;
+                case 'ğ' or 'Ğ': sb.Append('g'); break;
+                case 'ç' or 'Ç': sb.Append('c'); break;
+                case 'ö' or 'Ö': sb.Append('o'); break;
+                case 'ü' or 'Ü': sb.Append('u'); break;
                 case 'ß': sb.Append("ss"); break;
                 default:
-                    if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark && IsAllowed(c) && c != ' ')
+                    if (char.IsLetterOrDigit(c) && CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
                         sb.Append(char.ToLowerInvariant(c));
                     break;
             }
