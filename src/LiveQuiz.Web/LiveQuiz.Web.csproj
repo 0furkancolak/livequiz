@@ -7,5 +7,11 @@
     <ProjectReference Include="..\LiveQuiz.Contracts\LiveQuiz.Contracts.csproj" />
     <ProjectReference Include="..\LiveQuiz.ServiceDefaults\LiveQuiz.ServiceDefaults.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
+    <PackageReference Include="Microsoft.Extensions.ServiceDiscovery.Yarp" />
+    <PackageReference Include="MudBlazor" />
+    <PackageReference Include="Yarp.ReverseProxy" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="LiveQuiz.Web.Tests" />
   </ItemGroup>
 </Project>
