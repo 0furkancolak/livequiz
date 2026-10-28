@@ -1,0 +1,47 @@
+@page "/host"
+@rendermode InteractiveServer
+@inject ApiClient Api
+
+<PageTitle>Host</PageTitle>
+
+<h1>Host panel</h1>
+<p>Render mode: InteractiveServer (interactive: @_interactive)</p>
+
+<button @onclick="PingAsync">Ping API</button>
+
+@if (_error is not null)
+{
+    <p role="alert">@_error</p>
+}
+else if (_ping is not null)
+{
+    <p id="ping-result">@_ping.Service – database reachable: @_ping.DatabaseReachable (@_ping.ServerTimeUtc.ToString("O"))</p>
+}
+
+@code {
+    private PingResponse? _ping;
+    private string? _error;
+    private bool _interactive;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _interactive = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task PingAsync()
+    {
+        try
+        {
+            _error = null;
+            _ping = await Api.PingAsync();
+        }
+        catch (HttpRequestException ex)
+        {
+            _error = $"API unreachable: {ex.Message}";
+        }
+    }
+}

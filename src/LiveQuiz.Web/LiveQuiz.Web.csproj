@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\LiveQuiz.Web.Client\LiveQuiz.Web.Client.csproj" />
+    <ProjectReference Include="..\LiveQuiz.Contracts\LiveQuiz.Contracts.csproj" />
+    <ProjectReference Include="..\LiveQuiz.ServiceDefaults\LiveQuiz.ServiceDefaults.csproj" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
+  </ItemGroup>
+</Project>
