@@ -80,7 +80,15 @@ public sealed class GameFlowTests(LiveQuizStack stack) : IAsyncLifetime
         // The finished game is archived and listed in the host's history.
         await host.Page.GetByRole(AriaRole.Link, new() { Name = "History" }).ClickAsync();
         var row = host.Page.Locator("tr").Filter(new() { HasText = "World quiz" });
-        await Expect(row).ToBeVisibleAsync(new() { Timeout = 30_000 });
+        try
+        {
+            await Expect(row).ToBeVisibleAsync(new() { Timeout = 30_000 });
+        }
+        catch (PlaywrightException)
+        {
+            throw new InvalidOperationException($"History never listed the finished game.\n{stack.ProcessLog}");
+        }
+
         await row.GetByRole(AriaRole.Link, new() { Name = "Details" }).ClickAsync();
         await Expect(host.Page.Locator("#standings")).ToContainTextAsync("Alice");
         await Expect(host.Page.Locator("#standings")).ToContainTextAsync("Bob");
