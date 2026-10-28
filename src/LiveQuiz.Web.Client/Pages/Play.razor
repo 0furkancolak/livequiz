@@ -5,9 +5,12 @@
 @using LiveQuiz.Contracts.Sessions
 @using LiveQuiz.Web.Client.Lobby
 @implements IAsyncDisposable
+@using LiveQuiz.Web.Client.Layout
 @inject IPlayerSessionClient Session
 
 <PageTitle>Play</PageTitle>
+
+<SiteNav />
 
 <main class="play">
     <h1>LiveQuiz</h1>
@@ -118,6 +121,8 @@
 
     private static readonly string[] Labels = ["A", "B", "C", "D"];
 
+    [SupplyParameterFromQuery(Name = "pin")] public string? PinFromQuery { get; set; }
+
     private Phase _phase = Phase.Join;
     private string _nicknameShown = string.Empty;
     private string _pin = string.Empty;
@@ -139,6 +144,9 @@
 
     protected override void OnInitialized()
     {
+        if (!string.IsNullOrWhiteSpace(PinFromQuery))
+            _pin = PinFromQuery.Trim();
+
         Session.CountChanged += OnCount;
         Session.Cancelled += OnCancelled;
         Session.QuestionStarted += OnQuestionStarted;

@@ -1,9 +1,45 @@
 @page "/"
+@using LiveQuiz.Web.Client.Layout
+@using LiveQuiz.Contracts.Sessions
 
-<PageTitle>LiveQuiz</PageTitle>
+<PageTitle>LiveQuiz – play quizzes together</PageTitle>
 
-<h1>LiveQuiz</h1>
-<ul>
-    <li><a href="host">Host panel</a> – InteractiveServer (sign in to manage quizzes)</li>
-    <li><a href="play">Play</a> – InteractiveWebAssembly (player screen)</li>
-</ul>
+<SiteNav />
+
+<main class="home">
+    <section class="hero">
+        <div>
+            <h1>Quizzes that run on everyone's phone.</h1>
+            <p class="lead">Hosts write the questions. Players join with a PIN, answer against the clock and watch the leaderboard move.</p>
+        </div>
+        <form class="join" method="get" action="/play">
+            <h2>Got a PIN?</h2>
+            <label for="home-pin">Game PIN</label>
+            <input id="home-pin" name="pin" inputmode="numeric" autocomplete="off" maxlength="@SessionLimits.PinLength" placeholder="123456" required />
+            <button type="submit">Join the game</button>
+            <p class="hint">No account needed. You only pick a nickname.</p>
+        </form>
+    </section>
+
+    <section id="how" class="how">
+        <h2>Start a game in three steps</h2>
+        <ol>
+            <li class="step a">
+                <h3>Write a quiz</h3>
+                <p>Sign in as a host, add questions with up to four answers and a time limit for each.</p>
+            </li>
+            <li class="step b">
+                <h3>Share the PIN</h3>
+                <p>Start a game and read out the six-digit PIN. Players appear in the lobby as they join.</p>
+            </li>
+            <li class="step c">
+                <h3>Play and review</h3>
+                <p>Reveal each question, show the standings, and open the finished game from your history.</p>
+            </li>
+        </ol>
+        <div class="actions">
+            <a class="primary" href="/host/register">Create a host account</a>
+            <a class="secondary" href="/host/login">Sign in</a>
+        </div>
+    </section>
+</main>

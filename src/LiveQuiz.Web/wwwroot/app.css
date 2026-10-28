@@ -36,3 +36,5 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+/* Player and home pages are plain HTML with a light design; keep them readable in dark mode. */
+body:has(.play), body:has(.home) { background: #f6f4ff; color: #1d1a3a; color-scheme: light; }

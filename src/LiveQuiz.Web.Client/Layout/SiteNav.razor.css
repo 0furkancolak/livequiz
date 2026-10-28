@@ -1,0 +1,17 @@
+.site-nav { background: #1d1a3a; color: #fff; font-family: system-ui, sans-serif; }
+.site-nav nav { max-width: 70rem; margin: 0 auto; padding: .75rem 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.site-nav ul { display: flex; align-items: center; gap: .25rem; list-style: none; margin: 0; padding: 0; }
+.site-nav a { color: #fff; text-decoration: none; padding: .5rem .75rem; border-radius: .5rem; font-weight: 600; }
+.site-nav a:hover { background: rgba(255,255,255,.12); }
+.site-nav a:focus-visible { outline: 3px solid #ffc933; outline-offset: 2px; }
+.site-nav a.active { box-shadow: inset 0 -3px 0 #ffc933; border-radius: 0; }
+.site-nav .brand { display: inline-flex; align-items: center; gap: .6rem; font-size: 1.25rem; font-weight: 800; padding-left: 0; letter-spacing: -.01em; }
+.site-nav .brand:hover { background: none; }
+.site-nav .mark { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; width: 1.5rem; height: 1.5rem; }
+.site-nav .mark i { border-radius: 3px; }
+.site-nav .mark i:nth-child(1) { background: #e0338d; }
+.site-nav .mark i:nth-child(2) { background: #ffc933; }
+.site-nav .mark i:nth-child(3) { background: #19b5a5; }
+.site-nav .mark i:nth-child(4) { background: #5b6cff; }
+.site-nav a.cta { background: #ffc933; color: #1d1a3a; padding: .5rem 1rem; }
+.site-nav a.cta:hover { background: #ffd966; }

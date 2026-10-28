@@ -14,9 +14,11 @@
         <MudLink Href="/host" Color="Color.Inherit" Underline="Underline.None"><MudText Typo="Typo.h6">LiveQuiz</MudText></MudLink>
         @if (ShowAccount)
         {
-            <MudButton Href="/host/history" Color="Color.Inherit" Class="ml-4">History</MudButton>
+            <MudButton Href="/host" Color="Color.Inherit" Class="ml-4">Quizzes</MudButton>
+            <MudButton Href="/host/history" Color="Color.Inherit">History</MudButton>
         }
         <MudSpacer />
+        <MudButton Href="/play" Color="Color.Inherit">Join a game</MudButton>
         @if (ShowAccount && _email is not null)
         {
             <MudText Class="mr-4">@_email</MudText>
