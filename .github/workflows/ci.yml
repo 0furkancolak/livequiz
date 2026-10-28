@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Restore
+        run: dotnet restore LiveQuiz.sln
+      - name: Build
+        run: dotnet build LiveQuiz.sln --no-restore -c Release
+      - name: Test
+        run: dotnet test --solution LiveQuiz.sln --no-build -c Release
