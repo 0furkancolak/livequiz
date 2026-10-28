@@ -32,6 +32,7 @@
     <PackageVersion Include="Microsoft.Orleans.Server" Version="$(OrleansVersion)" />
     <PackageVersion Include="Microsoft.Orleans.Persistence.AdoNet" Version="$(OrleansVersion)" />
     <PackageVersion Include="Microsoft.Orleans.TestingHost" Version="$(OrleansVersion)" />
+    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.11.0" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="$(AspNetVersion)" />
     <!-- Tests -->
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.16.0" />

@@ -12,7 +12,7 @@ public class SessionGrainTests(ClusterFixture fixture)
     {
         var id = Guid.CreateVersion7();
         var grain = fixture.Grains.GetGrain<ISessionGrain>(id);
-        var pin = await grain.Open(owner, Guid.NewGuid(), "Capitals");
+        var pin = await grain.Open(owner, Guid.NewGuid(), "Capitals", GameFixtures.Questions());
         return (id, grain, pin);
     }
 
@@ -39,7 +39,7 @@ public class SessionGrainTests(ClusterFixture fixture)
     {
         var (_, grain, _) = await OpenSession();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => grain.Open("owner-1", Guid.NewGuid(), "Again"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => grain.Open("owner-1", Guid.NewGuid(), "Again", GameFixtures.Questions()));
     }
 
     [Fact]
@@ -152,7 +152,11 @@ public class SessionGrainTests(ClusterFixture fixture)
         for (var i = 0; i < 10; i++)
             await grain.Join($"Player {i}");
 
-        await WaitUntil(() => LastCount(id) == 10);
+        for (var i = 0; i < 20 && LastCount(id) != 10; i++)
+        {
+            ClusterFixture.Time.Advance(TimeSpan.FromSeconds(1));
+            await Task.Delay(50, TestContext.Current.CancellationToken);
+        }
         var counts = RecordingNotifier.Instance.For(id).Where(e => e.Kind == nameof(ISessionNotifier.LobbyCount)).ToList();
         Assert.True(counts.Count < 10, $"expected coalescing, got {counts.Count} pushes");
         Assert.Equal(10, LastCount(id));

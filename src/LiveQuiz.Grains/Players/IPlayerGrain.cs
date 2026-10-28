@@ -11,9 +11,17 @@ public interface IPlayerGrain : IGrainWithGuidCompoundKey
     Task SetConnected(bool connected);
 
     Task<bool> IsConnected();
+
+    /// <summary>Stores the outcome of one question (called by the session when the question closes).</summary>
+    Task RecordAnswer(int questionIndex, int optionIndex, int points, int elapsedMs);
+
+    Task<PlayerScore> GetScore();
 }
 
 public static class PlayerKeys
 {
     public static string Extension(Guid sessionId) => sessionId.ToString("N");
 }
+
+[GenerateSerializer, Immutable]
+public sealed record PlayerScore([property: Id(0)] int TotalPoints, [property: Id(1)] int AnswersRecorded);

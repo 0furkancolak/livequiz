@@ -1,3 +1,4 @@
+using LiveQuiz.Contracts.Game;
 using LiveQuiz.Contracts.Sessions;
 
 namespace LiveQuiz.Grains.Sessions;
@@ -15,4 +16,14 @@ public interface ISessionNotifier
     Task LobbyCount(Guid sessionId, int count);
 
     Task SessionCancelled(Guid sessionId);
+
+    Task QuestionStarted(Guid sessionId, QuestionForPlayer question);
+
+    Task AnswerCount(Guid sessionId, int answered, int total);
+
+    Task QuestionEnded(Guid sessionId, QuestionResults results);
+
+    Task PlayerResult(Guid sessionId, Guid playerId, PlayerQuestionResult result);
+
+    Task SessionFinished(Guid sessionId, FinalResults results);
 }
