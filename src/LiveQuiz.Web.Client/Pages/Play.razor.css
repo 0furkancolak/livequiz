@@ -5,7 +5,7 @@
 .play button { margin-top: 1rem; padding: .75rem 1.5rem; font-size: 1.1rem; border: 2px solid #4757e6; border-radius: .5rem; background: #4757e6; color: #fff; cursor: pointer; }
 .play button:disabled { opacity: .6; cursor: default; }
 .play .error { color: #b00020; min-height: 1.25rem; margin: .25rem 0 0; }
-.play .runtime { margin-top: 2rem; font-size: .75rem; color: #666; }
+.play .runtime { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .play .options { display: grid; grid-template-columns: 1fr; gap: .5rem; }
 .play .option { width: 100%; margin: 0; text-align: left; border: 2px solid #ccc; border-radius: .5rem; background: #fff; color: #1d1a3a; }
 .play .option .label { display: inline-block; min-width: 1.5rem; font-weight: 700; }

@@ -10,6 +10,22 @@ two silos) done properly rather than demoed.
 - A player who reloads, loses Wi-Fi or whose silo dies lands back on the same question ([ADR 0013](docs/adr/0013-restart-reconnect-and-abandon.md)).
 - Vertical slices, no mediator, no generic repository ([ADR 0001](docs/adr/0001-vertical-slice-no-mediator.md)).
 
+## Screenshots
+
+Captured from the Compose stack with the seeded demo host.
+
+| Home | Host sign in | Quizzes |
+| --- | --- | --- |
+| ![Home](docs/screenshots/01-home.png) | ![Host sign in](docs/screenshots/02-host-login.png) | ![Quizzes](docs/screenshots/03-host-quizzes.png) |
+
+| Quiz editor | Host lobby | Host question |
+| --- | --- | --- |
+| ![Quiz editor](docs/screenshots/04-quiz-editor.png) | ![Host lobby](docs/screenshots/05-host-lobby.png) | ![Host question](docs/screenshots/08-host-question.png) |
+
+| Player join | Player lobby | Player question | Player result |
+| --- | --- | --- | --- |
+| ![Player join](docs/screenshots/06-player-join.png) | ![Player lobby](docs/screenshots/07-player-lobby.png) | ![Player question](docs/screenshots/09-player-question.png) | ![Player result](docs/screenshots/10-player-result.png) |
+
 ## Architecture
 
 ```mermaid
