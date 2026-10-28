@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using LiveQuiz.Contracts.Game;
 using LiveQuiz.Contracts.Quizzes;
 using LiveQuiz.Contracts.Sessions;
 
@@ -36,6 +37,12 @@ public sealed class ApiClient(HttpClient http, ApiSession session)
 
     public Task<ApiResult<object>> CancelSessionAsync(Guid sessionId, CancellationToken ct = default) =>
         SendAsync<object>(HttpMethod.Delete, $"/api/sessions/{sessionId}", null, ct);
+
+    public Task<ApiResult<List<SessionHistoryItem>>> ListHistoryAsync(CancellationToken ct = default) =>
+        SendAsync<List<SessionHistoryItem>>(HttpMethod.Get, "/api/sessions/history", null, ct);
+
+    public Task<ApiResult<SessionHistoryDetail>> GetHistoryAsync(Guid id, CancellationToken ct = default) =>
+        SendAsync<SessionHistoryDetail>(HttpMethod.Get, $"/api/sessions/history/{id}", null, ct);
 
     private async Task<ApiResult<T>> SendAsync<T>(HttpMethod method, string url, object? body, CancellationToken ct)
     {

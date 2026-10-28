@@ -12,6 +12,10 @@
 <MudLayout>
     <MudAppBar Elevation="1">
         <MudLink Href="/host" Color="Color.Inherit" Underline="Underline.None"><MudText Typo="Typo.h6">LiveQuiz</MudText></MudLink>
+        @if (ShowAccount)
+        {
+            <MudButton Href="/host/history" Color="Color.Inherit" Class="ml-4">History</MudButton>
+        }
         <MudSpacer />
         @if (ShowAccount && _email is not null)
         {
