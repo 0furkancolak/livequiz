@@ -1,0 +1,13 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.4">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UserSecretsId>livequiz-apphost</UserSecretsId>
+    <!-- The Aspire CLI bundle is optional; `dotnet run` is the supported entry point for this repo. -->
+    <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\LiveQuiz.Api\LiveQuiz.Api.csproj" />
+    <ProjectReference Include="..\LiveQuiz.Web\LiveQuiz.Web.csproj" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+  </ItemGroup>
+</Project>
