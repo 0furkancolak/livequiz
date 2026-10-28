@@ -29,10 +29,14 @@ builder.Services.AddScoped<LiveQuiz.Web.Host.BrowserApi>();
 builder.Services.AddScoped<LiveQuiz.Web.Host.IHostSessionClient, LiveQuiz.Web.Host.HostSessionClient>();
 
 // "https+http://api" is resolved by Aspire service discovery (prefers https, falls back to http).
-builder.Services.AddHttpClient<ApiClient>(client => client.BaseAddress = new Uri("https+http://api"));
+builder.Services.AddSingleton<ApiInstances>();
+builder.Services.AddTransient<ApiInstanceHandler>();
+builder.Services.AddHttpClient<ApiClient>(client => client.BaseAddress = new Uri("https+http://api"))
+    .AddHttpMessageHandler<ApiInstanceHandler>();
 
 // Web is the single browser-facing origin: /api/** is forwarded to the Api, so the Identity cookie
 // is first-party and neither CORS nor cross-origin cookies are needed (see ADR 0007). /hubs/** takes the same path.
+var apiInstances = new ApiInstances(builder.Configuration);
 builder.Services.AddReverseProxy()
     .LoadFromMemory(
         [
@@ -53,10 +57,30 @@ builder.Services.AddReverseProxy()
         [new Yarp.ReverseProxy.Configuration.ClusterConfig
         {
             ClusterId = "api",
-            Destinations = new Dictionary<string, Yarp.ReverseProxy.Configuration.DestinationConfig>
+            // A destination that refuses connections is skipped for a while, so a dead instance costs a few
+            // failed attempts and not every other request.
+            HealthCheck = new Yarp.ReverseProxy.Configuration.HealthCheckConfig
             {
-                ["api"] = new() { Address = "https+http://api" }
-            }
+                Passive = new Yarp.ReverseProxy.Configuration.PassiveHealthCheckConfig
+                {
+                    Enabled = true,
+                    Policy = "TransportFailureRate",
+                    ReactivationPeriod = TimeSpan.FromSeconds(30)
+                }
+            },
+            // The default policy (power of two choices) prefers the destination with the fewest requests in flight,
+            // which for a dead instance is always zero; round robin does not.
+            LoadBalancingPolicy = "RoundRobin",
+            Metadata = new Dictionary<string, string>
+            {
+                ["TransportFailureRateHealthPolicy.RateLimit"] = "0.5",
+                ["TransportFailureRateHealthPolicy.MinimalTotalCountThreshold"] = "1"
+            },
+            // Browser traffic is spread over every Api instance. SignalR connections need no stickiness: the clients skip
+            // negotiation and use WebSockets, and the Orleans backplane delivers messages whichever instance holds a socket.
+            Destinations = apiInstances.Names.ToDictionary(
+                name => name,
+                name => new Yarp.ReverseProxy.Configuration.DestinationConfig { Address = $"https+http://{name}" })
         }])
     .AddServiceDiscoveryDestinationResolver();
 

@@ -2,15 +2,17 @@ using LiveQuiz.Contracts.Game;
 using LiveQuiz.Contracts.Sessions;
 using LiveQuiz.Web.Client.Lobby;
 using LiveQuiz.Web.Services;
-using Microsoft.Extensions.ServiceDiscovery;
+using Microsoft.AspNetCore.Components;
 
 namespace LiveQuiz.Web.Host;
 
 /// <summary>
-/// Server-side hub connection from the Blazor circuit straight to the Api, authenticated with the host's Identity
-/// cookie held in <see cref="ApiSession"/> (never sent to the browser). Service discovery supplies the Api address.
+/// Server-side hub connection from the Blazor circuit, authenticated with the host's Identity cookie held in
+/// <see cref="ApiSession"/> (never sent to the browser). It connects through Web's own origin, like a browser does, so
+/// YARP picks an Api instance on every (re)connect: a connection pinned to one instance could never reconnect once that
+/// instance died (ADR 0016).
 /// </summary>
-public sealed class HostSessionClient(ServiceEndpointResolver resolver, ApiSession session) : IHostSessionClient
+public sealed class HostSessionClient(NavigationManager navigation, ApiSession session) : IHostSessionClient
 {
     private QuizHubConnection? _hub;
 
@@ -27,11 +29,7 @@ public sealed class HostSessionClient(ServiceEndpointResolver resolver, ApiSessi
 
     public async Task<HostSnapshot> ConnectAsync(Guid sessionId, CancellationToken ct = default)
     {
-        var source = await resolver.GetEndpointsAsync("https+http://api", ct);
-        var baseUri = source.Endpoints.Select(e => (e.EndPoint as UriEndPoint)?.Uri).FirstOrDefault(u => u is not null)
-            ?? throw new InvalidOperationException("The Api endpoint could not be resolved.");
-
-        var hub = new QuizHubConnection(new Uri(baseUri, QuizHubNames.Path), options =>
+        var hub = new QuizHubConnection(new Uri(new Uri(navigation.BaseUri), QuizHubNames.Path), options =>
         {
             if (session.CookieHeader is { } cookie)
                 options.Headers["Cookie"] = cookie;

@@ -1,26 +1,32 @@
 using LiveQuiz.Contracts.Game;
 using LiveQuiz.Contracts.Sessions;
 using Microsoft.AspNetCore.Http.Connections.Client;
+using Microsoft.AspNetCore.Http.Connections;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 
 namespace LiveQuiz.Web.Client.Lobby;
 
 /// <summary>
-/// Retry schedule after a dropped connection: immediately, then 1, 2, 5 and 10 seconds, then every 30 seconds,
-/// and give up after <see cref="GiveUpAfter"/> (a game rarely outlasts a five minute outage).
+/// Retry schedule after a dropped connection: immediately, then 1, 2 and 5 seconds, then every 5 to 7 seconds (the
+/// jitter keeps hundreds of players of a dead server instance from reconnecting in lockstep), and give up after
+/// <see cref="GiveUpAfter"/> (a game rarely outlasts a five minute outage). When a server instance dies the cluster needs
+/// about 20 seconds to notice, so a short cap on the delay is what makes recovery quick once it has.
 /// </summary>
 public sealed class ReconnectPolicy : IRetryPolicy
 {
     public static readonly TimeSpan GiveUpAfter = TimeSpan.FromMinutes(5);
 
     private static readonly TimeSpan[] Steps =
-        [TimeSpan.Zero, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10)];
+        [TimeSpan.Zero, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5)];
 
     public TimeSpan? NextRetryDelay(RetryContext retryContext)
     {
         if (retryContext.ElapsedTime >= GiveUpAfter)
             return null;
-        return retryContext.PreviousRetryCount < Steps.Length ? Steps[retryContext.PreviousRetryCount] : TimeSpan.FromSeconds(30);
+        return retryContext.PreviousRetryCount < Steps.Length
+            ? Steps[retryContext.PreviousRetryCount]
+            : TimeSpan.FromSeconds(5) + TimeSpan.FromMilliseconds(Random.Shared.Next(0, 2000));
     }
 }
 
@@ -37,7 +43,14 @@ public sealed class QuizHubConnection : IAsyncDisposable
     public QuizHubConnection(Uri url, Action<HttpConnectionOptions>? configure = null)
     {
         _connection = new HubConnectionBuilder()
-            .WithUrl(url, options => configure?.Invoke(options))
+            .WithUrl(url, options =>
+            {
+                // Several Api instances sit behind the proxy without sticky sessions (ADR 0015), so the connection
+                // must not depend on a negotiate request landing on the same instance as the socket.
+                options.SkipNegotiation = true;
+                options.Transports = HttpTransportType.WebSockets;
+                configure?.Invoke(options);
+            })
             .WithAutomaticReconnect(new ReconnectPolicy())
             .Build();
 
@@ -106,19 +119,44 @@ public sealed class QuizHubConnection : IAsyncDisposable
         return state;
     }
 
+    // Rejoining can fail for a while after a server instance dies: the cluster needs some time to notice and to
+    // reactivate the session on a live silo. Only a definite "not found" ends the game; anything else is retried.
     private async Task RejoinAsync()
     {
-        try
+        var started = DateTime.UtcNow;
+        for (var attempt = 0; ; attempt++)
         {
-            if (_rejoin is { } rejoin)
-                await rejoin(CancellationToken.None);
+            try
+            {
+                if (_rejoin is { } rejoin)
+                    await rejoin(CancellationToken.None);
+                return;
+            }
+            catch (HubException ex) when (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+            {
+                await GiveUpAsync(); // the session is over or this player is not in it
+                return;
+            }
+            catch (Exception)
+            {
+                // The connection dropped again: the automatic reconnect will raise Reconnected and call this again.
+                if (_disposed || _connection.State != HubConnectionState.Connected)
+                    return;
+                if (DateTime.UtcNow - started >= ReconnectPolicy.GiveUpAfter)
+                {
+                    await GiveUpAsync();
+                    return;
+                }
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(Math.Min(1 + attempt, 5)));
         }
-        catch (Exception)
-        {
-            // The server refused (session over) or dropped again before answering: nothing left to resume.
-            Lose();
-            await _connection.StopAsync();
-        }
+    }
+
+    private async Task GiveUpAsync()
+    {
+        Lose();
+        await _connection.StopAsync();
     }
 
     private void Lose()
