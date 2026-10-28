@@ -1,11 +1,13 @@
 .play { max-width: 26rem; margin: 2rem auto; padding: 0 1rem; font-family: system-ui, sans-serif; }
 .play label { display: block; margin-top: 1rem; font-weight: 600; }
-.play input { width: 100%; box-sizing: border-box; padding: .75rem; font-size: 1.25rem; }
-.play button { margin-top: 1rem; padding: .75rem 1.5rem; font-size: 1.1rem; }
+.play input { width: 100%; box-sizing: border-box; padding: .75rem; font-size: 1.25rem; border: 2px solid #9e9e9e; border-radius: .5rem; background: #fff; color: #212121; }
+.play input:focus { outline: none; border-color: #3f51b5; }
+.play button { margin-top: 1rem; padding: .75rem 1.5rem; font-size: 1.1rem; border: 2px solid #3f51b5; border-radius: .5rem; background: #3f51b5; color: #fff; cursor: pointer; }
+.play button:disabled { opacity: .6; cursor: default; }
 .play .error { color: #b00020; min-height: 1.25rem; margin: .25rem 0 0; }
 .play .runtime { margin-top: 2rem; font-size: .75rem; color: #666; }
 .play .options { display: grid; grid-template-columns: 1fr; gap: .5rem; }
-.play .option { width: 100%; margin: 0; text-align: left; border: 2px solid #ccc; border-radius: .5rem; background: #fff; }
+.play .option { width: 100%; margin: 0; text-align: left; border: 2px solid #ccc; border-radius: .5rem; background: #fff; color: #212121; }
 .play .option .label { display: inline-block; min-width: 1.5rem; font-weight: 700; }
 .play .option.chosen { border-color: #3f51b5; background: #e8eaf6; }
 .play .option:disabled:not(.chosen) { opacity: .6; }
