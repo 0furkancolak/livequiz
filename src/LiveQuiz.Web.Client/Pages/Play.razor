@@ -12,6 +12,11 @@
 <main class="play">
     <h1>LiveQuiz</h1>
 
+    @if (_reconnecting)
+    {
+        <p id="reconnecting" class="banner" role="status">Connection lost — reconnecting…</p>
+    }
+
     @switch (_phase)
     {
         case Phase.Join:
@@ -119,7 +124,7 @@
     private string _nickname = string.Empty;
     private string? _pinError, _nicknameError, _error, _answerMessage;
     private int _count;
-    private bool _busy;
+    private bool _busy, _reconnecting;
 
     private QuestionForPlayer? _question;
     private QuestionResults? _results;
@@ -140,6 +145,9 @@
         Session.QuestionEnded += OnQuestionEnded;
         Session.ResultReceived += OnResultReceived;
         Session.Finished += OnFinished;
+        Session.Reconnecting += OnReconnecting;
+        Session.Resumed += OnResumed;
+        Session.ConnectionLost += OnConnectionLost;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -148,7 +156,10 @@
             return;
 
         if (await Session.RestoreAsync() is { } restored)
-            EnterLobby(restored);
+        {
+            ApplyState(restored);
+            StateHasChanged();
+        }
     }
 
     private async Task JoinAsync()
@@ -169,7 +180,10 @@
         {
             var attempt = await Session.JoinAsync(pin, NicknamePolicy.Normalize(_nickname));
             if (attempt.Succeeded)
-                EnterLobby(attempt.Lobby!);
+            {
+                ApplyState(attempt.State!);
+                StateHasChanged();
+            }
             else if (attempt.NicknameProblem)
                 _nicknameError = attempt.Error;
             else
@@ -181,12 +195,50 @@
         }
     }
 
-    private void EnterLobby(PlayerLobbySnapshot lobby)
+    // One place decides what to show for a state of the game, whether it comes from joining, a page reload
+    // or a reconnect, so every path lands on the same screen.
+    private void ApplyState(PlayerGameState state)
     {
-        _nicknameShown = lobby.Nickname;
-        _count = lobby.PlayerCount;
-        _phase = Phase.Lobby;
-        StateHasChanged();
+        _nicknameShown = state.Nickname;
+        _count = state.PlayerCount;
+        _reconnecting = false;
+
+        switch (state.Phase)
+        {
+            case SessionPhase.Question when state.Question is not null:
+                ShowQuestion(state.Question, state.ChosenIndex);
+                break;
+            case SessionPhase.Results when state.Question is not null:
+                StopTicker();
+                _question = state.Question;
+                _results = state.Results;
+                _result = state.Result;
+                _phase = Phase.Result;
+                break;
+            case SessionPhase.Finished when state.Final is not null:
+                StopTicker();
+                _final = state.Final;
+                _result = state.Result;
+                _phase = Phase.Finished;
+                break;
+            default:
+                StopTicker();
+                _phase = Phase.Lobby;
+                break;
+        }
+    }
+
+    private void ShowQuestion(QuestionForPlayer question, int? chosen = null)
+    {
+        _question = question;
+        _results = null;
+        _result = null;
+        _chosen = chosen;
+        _answerMessage = chosen is null ? null : "Answer locked in!";
+        _clock.Restart();
+        _ticker?.Dispose();
+        _ticker = new Timer(_ => InvokeAsync(StateHasChanged), null, 250, 250);
+        _phase = Phase.Question;
     }
 
     private async Task AnswerAsync(int index)
@@ -200,6 +252,7 @@
         {
             AnswerStatus.Accepted => "Answer locked in!",
             AnswerStatus.TooLate => "Too late — the question has closed.",
+            AnswerStatus.RateLimited => "Slow down — too many taps.",
             _ => "Your answer could not be accepted."
         };
     }
@@ -212,15 +265,28 @@
 
     private void OnQuestionStarted(QuestionForPlayer question) => InvokeAsync(() =>
     {
-        _question = question;
-        _results = null;
-        _result = null;
-        _chosen = null;
-        _answerMessage = null;
-        _clock.Restart();
-        _ticker?.Dispose();
-        _ticker = new Timer(_ => InvokeAsync(StateHasChanged), null, 250, 250);
-        _phase = Phase.Question;
+        ShowQuestion(question);
+        StateHasChanged();
+    });
+
+    private void OnReconnecting() => InvokeAsync(() =>
+    {
+        _reconnecting = true;
+        StateHasChanged();
+    });
+
+    private void OnResumed(PlayerGameState state) => InvokeAsync(() =>
+    {
+        ApplyState(state);
+        StateHasChanged();
+    });
+
+    private void OnConnectionLost() => InvokeAsync(() =>
+    {
+        StopTicker();
+        _reconnecting = false;
+        _phase = Phase.Join;
+        _error = "The connection to the game was lost. Reload this page to rejoin.";
         StateHasChanged();
     });
 
@@ -278,6 +344,9 @@
         Session.QuestionEnded -= OnQuestionEnded;
         Session.ResultReceived -= OnResultReceived;
         Session.Finished -= OnFinished;
+        Session.Reconnecting -= OnReconnecting;
+        Session.Resumed -= OnResumed;
+        Session.ConnectionLost -= OnConnectionLost;
         await Session.DisposeAsync();
     }
 }

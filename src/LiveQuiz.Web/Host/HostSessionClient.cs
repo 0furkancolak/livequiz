@@ -21,8 +21,11 @@ public sealed class HostSessionClient(ServiceEndpointResolver resolver, ApiSessi
     public event Action<int, int>? AnswerCount;
     public event Action<QuestionResults>? QuestionEnded;
     public event Action<FinalResults>? Finished;
+    public event Action? Reconnecting;
+    public event Action<HostSnapshot>? Resumed;
+    public event Action? ConnectionLost;
 
-    public async Task<HostLobbySnapshot> ConnectAsync(Guid sessionId, CancellationToken ct = default)
+    public async Task<HostSnapshot> ConnectAsync(Guid sessionId, CancellationToken ct = default)
     {
         var source = await resolver.GetEndpointsAsync("https+http://api", ct);
         var baseUri = source.Endpoints.Select(e => (e.EndPoint as UriEndPoint)?.Uri).FirstOrDefault(u => u is not null)
@@ -40,6 +43,9 @@ public sealed class HostSessionClient(ServiceEndpointResolver resolver, ApiSessi
         hub.AnswerCount += (a, t) => AnswerCount?.Invoke(a, t);
         hub.QuestionEnded += r => QuestionEnded?.Invoke(r);
         hub.SessionFinished += f => Finished?.Invoke(f);
+        hub.Reconnecting += () => Reconnecting?.Invoke();
+        hub.HostResumed += snapshot => Resumed?.Invoke(snapshot);
+        hub.ConnectionLost += () => ConnectionLost?.Invoke();
 
         try
         {

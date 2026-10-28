@@ -17,6 +17,9 @@ public sealed class PlayerSessionClient(HttpClient http, NavigationManager navig
     public event Action<QuestionResults>? QuestionEnded;
     public event Action<PlayerQuestionResult>? ResultReceived;
     public event Action<FinalResults>? Finished;
+    public event Action? Reconnecting;
+    public event Action<PlayerGameState>? Resumed;
+    public event Action? ConnectionLost;
 
     public async Task<AnswerStatus> SubmitAnswerAsync(int questionIndex, int optionIndex, CancellationToken ct = default) =>
         _hub is null ? AnswerStatus.NotInGame : await _hub.SubmitAnswerAsync(questionIndex, optionIndex, ct);
@@ -30,12 +33,24 @@ public sealed class PlayerSessionClient(HttpClient http, NavigationManager navig
             case HttpStatusCode.OK:
                 var identity = (await response.Content.ReadFromJsonAsync<JoinSessionResponse>(ct))!;
                 await store.SaveAsync(identity);
-                return await ConnectAsync(identity, ct)
-                    ?? new JoinAttempt(null, "Joined, but the live connection failed. Please try again.");
+                try
+                {
+                    return await ConnectAsync(identity, ct)
+                        ?? new JoinAttempt(null, "Joined, but the live connection failed. Please try again.");
+                }
+                catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
+                {
+                    return new JoinAttempt(null, "Joined, but the live connection failed. Please try again.");
+                }
             case HttpStatusCode.NotFound:
                 return new JoinAttempt(null, "No open game with that PIN.");
             case HttpStatusCode.Conflict:
                 return new JoinAttempt(null, "That nickname is taken or the game is full.", NicknameProblem: true);
+            case HttpStatusCode.TooManyRequests:
+                var wait = response.Headers.RetryAfter?.Delta;
+                return new JoinAttempt(null, wait is { } d
+                    ? $"Too many attempts. Try again in {Math.Max(1, (int)Math.Ceiling(d.TotalSeconds))} seconds."
+                    : "Too many attempts. Please wait a moment and try again.");
             case HttpStatusCode.BadRequest:
                 return new JoinAttempt(null, "Please check your nickname.", NicknameProblem: true);
             default:
@@ -43,15 +58,23 @@ public sealed class PlayerSessionClient(HttpClient http, NavigationManager navig
         }
     }
 
-    public async Task<PlayerLobbySnapshot?> RestoreAsync(CancellationToken ct = default)
+    public async Task<PlayerGameState?> RestoreAsync(CancellationToken ct = default)
     {
         if (await store.LoadAsync() is not { } identity)
             return null;
 
-        var attempt = await ConnectAsync(identity, ct);
-        if (attempt is null)
-            await store.ClearAsync();
-        return attempt?.Lobby;
+        try
+        {
+            var attempt = await ConnectAsync(identity, ct);
+            if (attempt is null)
+                await store.ClearAsync();
+            return attempt?.State;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
+        {
+            // The network, not the game, is the problem: keep the identity so a reload can try again.
+            return null;
+        }
     }
 
     private async Task<JoinAttempt?> ConnectAsync(JoinSessionResponse identity, CancellationToken ct)
@@ -62,6 +85,14 @@ public sealed class PlayerSessionClient(HttpClient http, NavigationManager navig
         hub.QuestionStarted += q => QuestionStarted?.Invoke(q);
         hub.QuestionEnded += r => QuestionEnded?.Invoke(r);
         hub.PlayerResult += r => ResultReceived?.Invoke(r);
+        hub.Reconnecting += () => Reconnecting?.Invoke();
+        hub.PlayerResumed += state =>
+        {
+            if (state.Phase == SessionPhase.Finished)
+                _ = store.ClearAsync();
+            Resumed?.Invoke(state);
+        };
+        hub.ConnectionLost += () => ConnectionLost?.Invoke();
         hub.SessionFinished += f =>
         {
             _ = store.ClearAsync();
@@ -75,14 +106,21 @@ public sealed class PlayerSessionClient(HttpClient http, NavigationManager navig
 
         try
         {
-            var lobby = await hub.JoinAsPlayerAsync(identity.SessionId, identity.PlayerId, identity.ReconnectToken, ct);
+            var state = await hub.JoinAsPlayerAsync(identity.SessionId, identity.PlayerId, identity.ReconnectToken, ct);
             _hub = hub;
-            return new JoinAttempt(lobby);
+            if (state.Phase == SessionPhase.Finished)
+                await store.ClearAsync();
+            return new JoinAttempt(state);
         }
-        catch (Exception ex) when (ex is HubException or HttpRequestException or InvalidOperationException)
+        catch (HubException)
         {
             await hub.DisposeAsync();
             return null;
+        }
+        catch
+        {
+            await hub.DisposeAsync();
+            throw;
         }
     }
 

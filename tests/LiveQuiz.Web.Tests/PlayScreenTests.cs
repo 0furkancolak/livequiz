@@ -81,7 +81,7 @@ public sealed class PlayScreenTests : BunitContext
     [Fact]
     public void Joining_shows_the_lobby_and_live_count_updates()
     {
-        _client.Result = new JoinAttempt(new PlayerLobbySnapshot(Guid.NewGuid(), "Sam", 1));
+        _client.Result = new JoinAttempt(new PlayerGameState(Guid.NewGuid(), "Sam", 1));
         var cut = RenderPlay();
 
         Submit(cut, "123456", "  Sam ");
@@ -97,7 +97,7 @@ public sealed class PlayScreenTests : BunitContext
     [Fact]
     public void A_saved_identity_puts_the_player_straight_back_in_the_lobby()
     {
-        _client.Restored = new PlayerLobbySnapshot(Guid.NewGuid(), "Sam", 4);
+        _client.Restored = new PlayerGameState(Guid.NewGuid(), "Sam", 4);
 
         var cut = RenderPlay();
 
@@ -107,7 +107,7 @@ public sealed class PlayScreenTests : BunitContext
     [Fact]
     public void When_the_host_cancels_the_player_is_told()
     {
-        _client.Result = new JoinAttempt(new PlayerLobbySnapshot(Guid.NewGuid(), "Sam", 1));
+        _client.Result = new JoinAttempt(new PlayerGameState(Guid.NewGuid(), "Sam", 1));
         var cut = RenderPlay();
         Submit(cut, "123456", "Sam");
         cut.WaitForElement("#welcome");
@@ -117,9 +117,119 @@ public sealed class PlayScreenTests : BunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("#cancelled")));
     }
 
+    private static readonly QuestionForPlayer Capital =
+        new(0, 2, "Capital of France?", ["Paris", "Lyon", "Nice", "Lille"], 20, 12_000);
+
+    [Fact]
+    public async Task A_dropped_connection_shows_a_banner_that_goes_away_when_the_game_resumes()
+    {
+        var cut = await InQuestionAsync();
+
+        await cut.InvokeAsync(_client.RaiseReconnecting);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("#reconnecting")));
+
+        await cut.InvokeAsync(() => _client.RaiseResumed(new PlayerGameState(Guid.NewGuid(), "Sam", 2, SessionPhase.Question, Capital)));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Empty(cut.FindAll("#reconnecting"));
+            Assert.Equal("Capital of France?", cut.Find("#question-text").TextContent.Trim());
+        });
+    }
+
+    [Fact]
+    public void A_reloaded_page_lands_on_the_open_question_with_the_saved_choice()
+    {
+        _client.Restored = new PlayerGameState(Guid.NewGuid(), "Sam", 2, SessionPhase.Question, Capital, ChosenIndex: 2);
+
+        var cut = RenderPlay();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal("Question 1 of 2", cut.Find("#question-progress").TextContent.Trim());
+            Assert.Contains("chosen", cut.Find("#option-2").ClassName);
+            Assert.All(cut.FindAll(".option"), o => Assert.True(o.HasAttribute("disabled")));
+            Assert.Equal("Answer locked in!", cut.Find("#answer-status").TextContent.Trim());
+        });
+    }
+
+    [Fact]
+    public async Task Resuming_at_the_results_shows_the_outcome_and_the_correct_answer()
+    {
+        var cut = await InQuestionAsync();
+        var state = new PlayerGameState(
+            Guid.NewGuid(), "Sam", 2, SessionPhase.Results, Capital,
+            Results: new QuestionResults(0, 2, 0, [1, 0, 0, 0], [new Standing(1, "Sam", 980)], false),
+            Result: new PlayerQuestionResult(0, true, 0, true, 980, 980, 1, 2));
+
+        await cut.InvokeAsync(() => _client.RaiseResumed(state));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal("Correct!", cut.Find("#result-headline").TextContent.Trim());
+            Assert.Contains("Paris", cut.Find("#correct-answer").TextContent);
+            Assert.Empty(cut.FindAll("#question-text"));
+        });
+    }
+
+    [Fact]
+    public async Task Resuming_after_the_game_ended_shows_the_podium()
+    {
+        var cut = await InQuestionAsync();
+        var state = new PlayerGameState(
+            Guid.NewGuid(), "Sam", 2, SessionPhase.Finished,
+            Result: new PlayerQuestionResult(1, true, 1, true, 900, 1830, 2, 2),
+            Final: new FinalResults([new Standing(1, "Ann", 1900), new Standing(2, "Sam", 1830)], 2));
+
+        await cut.InvokeAsync(() => _client.RaiseResumed(state));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("#2", cut.Find("#final-rank").TextContent);
+            Assert.Equal(2, cut.FindAll("#podium li").Count);
+        });
+    }
+
+    [Fact]
+    public async Task Giving_up_on_the_connection_tells_the_player_to_reload()
+    {
+        var cut = await InQuestionAsync();
+
+        await cut.InvokeAsync(_client.RaiseReconnecting);
+        await cut.InvokeAsync(_client.RaiseConnectionLost);
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Empty(cut.FindAll("#reconnecting"));
+            Assert.Contains("Reload", cut.Find("form").TextContent);
+        });
+    }
+
+    [Fact]
+    public void Too_many_wrong_pins_shows_the_wait_message()
+    {
+        _client.Result = new JoinAttempt(null, "Too many attempts. Try again in 42 seconds.");
+        var cut = RenderPlay();
+
+        Submit(cut, "123456", "Sam");
+
+        cut.WaitForAssertion(() => Assert.Contains("Too many attempts", cut.Find("form").TextContent));
+    }
+
+    [Fact]
+    public async Task A_rate_limited_answer_says_to_slow_down()
+    {
+        var cut = await InQuestionAsync();
+        _client.AnswerResult = AnswerStatus.RateLimited;
+
+        cut.Find("#option-1").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Slow down", cut.Find("#answer-status").TextContent));
+    }
+
     private async Task<IRenderedComponent<Play>> InQuestionAsync()
     {
-        _client.Result = new JoinAttempt(new PlayerLobbySnapshot(Guid.NewGuid(), "Sam", 2));
+        _client.Result = new JoinAttempt(new PlayerGameState(Guid.NewGuid(), "Sam", 2));
         var cut = RenderPlay();
         Submit(cut, "123456", "Sam");
         cut.WaitForElement("#welcome");
@@ -144,7 +254,7 @@ public sealed class PlayScreenTests : BunitContext
     {
         var cut = await InQuestionAsync();
 
-        await cut.Find("#option-1").ClickAsync();
+        cut.Find("#option-1").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("locked in", cut.Find("#answer-status").TextContent));
         Assert.Equal([(0, 1)], _client.Answers);
@@ -209,7 +319,7 @@ public sealed class PlayScreenTests : BunitContext
     private sealed class FakePlayerSessionClient : IPlayerSessionClient
     {
         public JoinAttempt Result { get; set; } = new(null, "unset");
-        public PlayerLobbySnapshot? Restored { get; set; }
+        public PlayerGameState? Restored { get; set; }
         public int JoinCalls { get; private set; }
         public string? LastNickname { get; private set; }
 
@@ -219,6 +329,9 @@ public sealed class PlayScreenTests : BunitContext
         public event Action<QuestionResults>? QuestionEnded;
         public event Action<PlayerQuestionResult>? ResultReceived;
         public event Action<FinalResults>? Finished;
+        public event Action? Reconnecting;
+        public event Action<PlayerGameState>? Resumed;
+        public event Action? ConnectionLost;
 
         public List<(int Question, int Option)> Answers { get; } = [];
         public AnswerStatus AnswerResult { get; set; } = AnswerStatus.Accepted;
@@ -241,10 +354,13 @@ public sealed class PlayScreenTests : BunitContext
             return Task.FromResult(Result);
         }
 
-        public Task<PlayerLobbySnapshot?> RestoreAsync(CancellationToken ct = default) => Task.FromResult(Restored);
+        public Task<PlayerGameState?> RestoreAsync(CancellationToken ct = default) => Task.FromResult(Restored);
 
         public void RaiseCount(int count) => CountChanged?.Invoke(count);
         public void RaiseCancelled() => Cancelled?.Invoke();
+        public void RaiseReconnecting() => Reconnecting?.Invoke();
+        public void RaiseResumed(PlayerGameState s) => Resumed?.Invoke(s);
+        public void RaiseConnectionLost() => ConnectionLost?.Invoke();
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

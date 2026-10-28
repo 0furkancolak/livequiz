@@ -25,6 +25,11 @@
     }
     else
     {
+        @if (_reconnecting)
+        {
+            <MudAlert id="reconnecting" Severity="Severity.Warning" Class="mb-3">Connection lost — reconnecting…</MudAlert>
+        }
+
         @if (_commandError is not null)
         {
             <MudAlert Severity="Severity.Warning" role="alert" Class="mb-3">@_commandError</MudAlert>
@@ -132,14 +137,14 @@
     [Parameter] public Guid SessionId { get; set; }
 
     private Phase _phase = Phase.Lobby;
-    private HostLobbySnapshot? _snapshot;
+    private HostSnapshot? _snapshot;
     private List<PlayerInfo> _players = [];
     private QuestionForPlayer? _question;
     private QuestionResults? _results;
     private FinalResults? _final;
     private int _answered;
     private string? _error, _commandError;
-    private bool _busy;
+    private bool _busy, _reconnecting;
     private readonly Stopwatch _clock = new();
     private Timer? _ticker;
 
@@ -160,17 +165,80 @@
         Lobby.AnswerCount += OnAnswerCount;
         Lobby.QuestionEnded += OnQuestionEnded;
         Lobby.Finished += OnFinished;
+        Lobby.Reconnecting += OnReconnecting;
+        Lobby.Resumed += OnResumed;
+        Lobby.ConnectionLost += OnConnectionLost;
 
         try
         {
-            _snapshot = await Lobby.ConnectAsync(SessionId);
-            _players = [.. _snapshot.Players];
+            ApplySnapshot(await Lobby.ConnectAsync(SessionId));
         }
         catch (Exception ex) when (ex is Microsoft.AspNetCore.SignalR.HubException or HttpRequestException or InvalidOperationException)
         {
             _error = "This session is not available. It may have ended.";
         }
     }
+
+    // Joining, a page reload and a reconnect all arrive here, so each lands on the screen the game is really on.
+    private void ApplySnapshot(HostSnapshot snapshot)
+    {
+        _snapshot = snapshot;
+        _players = [.. snapshot.Players];
+        _reconnecting = false;
+
+        switch (snapshot.Phase)
+        {
+            case SessionPhase.Question when snapshot.Question is not null:
+                StartTicker(snapshot.Question);
+                _results = null;
+                _answered = snapshot.Answered;
+                _phase = Phase.Question;
+                break;
+            case SessionPhase.Results when snapshot.Question is not null && snapshot.Results is not null:
+                StopTicker();
+                _question = snapshot.Question;
+                _results = snapshot.Results;
+                _phase = Phase.Results;
+                break;
+            case SessionPhase.Finished when snapshot.Final is not null:
+                StopTicker();
+                _final = snapshot.Final;
+                _phase = Phase.Finished;
+                break;
+            default:
+                StopTicker();
+                _phase = Phase.Lobby;
+                break;
+        }
+    }
+
+    private void StartTicker(QuestionForPlayer question)
+    {
+        _question = question;
+        _clock.Restart();
+        _ticker?.Dispose();
+        _ticker = new Timer(_ => InvokeAsync(StateHasChanged), null, 250, 250);
+    }
+
+    private void OnReconnecting() => InvokeAsync(() =>
+    {
+        _reconnecting = true;
+        StateHasChanged();
+    });
+
+    private void OnResumed(HostSnapshot snapshot) => InvokeAsync(() =>
+    {
+        ApplySnapshot(snapshot);
+        StateHasChanged();
+    });
+
+    private void OnConnectionLost() => InvokeAsync(() =>
+    {
+        StopTicker();
+        _reconnecting = false;
+        _error = "The connection to this session was lost. Reload the page to reconnect.";
+        StateHasChanged();
+    });
 
     private async Task StartAsync() => await RunAsync(() => Lobby.StartGameAsync(SessionId));
 
@@ -211,12 +279,9 @@
 
     private void OnQuestionStarted(QuestionForPlayer question) => InvokeAsync(() =>
     {
-        _question = question;
+        StartTicker(question);
         _results = null;
         _answered = 0;
-        _clock.Restart();
-        _ticker?.Dispose();
-        _ticker = new Timer(_ => InvokeAsync(StateHasChanged), null, 250, 250);
         _phase = Phase.Question;
         StateHasChanged();
     });
@@ -268,6 +333,9 @@
         Lobby.AnswerCount -= OnAnswerCount;
         Lobby.QuestionEnded -= OnQuestionEnded;
         Lobby.Finished -= OnFinished;
+        Lobby.Reconnecting -= OnReconnecting;
+        Lobby.Resumed -= OnResumed;
+        Lobby.ConnectionLost -= OnConnectionLost;
         await Lobby.DisposeAsync();
     }
 }

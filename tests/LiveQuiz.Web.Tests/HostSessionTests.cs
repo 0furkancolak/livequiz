@@ -30,7 +30,7 @@ public sealed class HostSessionTests : BunitContext
     [Fact]
     public void Shows_the_pin_and_players_already_in_the_lobby()
     {
-        _lobby.Snapshot = new HostLobbySnapshot(_sessionId, "123456", "Capitals",
+        _lobby.Snapshot = new HostSnapshot(_sessionId, "123456", "Capitals",
             [new PlayerInfo(Guid.NewGuid(), "Ann", true), new PlayerInfo(Guid.NewGuid(), "Bob", false)]);
 
         var cut = RenderLobby();
@@ -71,7 +71,7 @@ public sealed class HostSessionTests : BunitContext
     public async Task A_connection_change_marks_the_player_as_connected()
     {
         var player = new PlayerInfo(Guid.NewGuid(), "Zoe", false);
-        _lobby.Snapshot = new HostLobbySnapshot(_sessionId, "123456", "Capitals", [player]);
+        _lobby.Snapshot = new HostSnapshot(_sessionId, "123456", "Capitals", [player]);
         var cut = RenderLobby();
         Assert.DoesNotContain("mud-chip-color-success", cut.Find(".player-chip").ClassName);
 
@@ -183,9 +183,68 @@ public sealed class HostSessionTests : BunitContext
         Assert.EndsWith("/host", navigation.Uri);
     }
 
+    private static QuestionForPlayer OpenQuestion => new(0, 2, "Capital of France?", ["Paris", "Lyon", "Nice", "Lille"], 20, 12_000);
+
+    [Fact]
+    public async Task A_dropped_connection_shows_a_banner_until_the_snapshot_arrives()
+    {
+        var cut = RenderLobby();
+
+        await cut.InvokeAsync(_lobby.RaiseReconnecting);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("#reconnecting")));
+
+        await cut.InvokeAsync(() => _lobby.RaiseResumed(new HostSnapshot(_sessionId, "654321", "Quiz", [new PlayerInfo(Guid.NewGuid(), "Ann", true)])));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Empty(cut.FindAll("#reconnecting"));
+            Assert.Equal("1 player", cut.Find("#lobby-count").TextContent.Trim());
+        });
+    }
+
+    [Fact]
+    public void A_reloaded_host_lands_on_the_open_question_with_the_answer_count()
+    {
+        _lobby.Snapshot = new HostSnapshot(
+            _sessionId, "654321", "Quiz", [new PlayerInfo(Guid.NewGuid(), "Ann", true), new PlayerInfo(Guid.NewGuid(), "Bob", true)],
+            SessionPhase.Question, OpenQuestion, Answered: 1);
+
+        var cut = RenderLobby();
+
+        Assert.Equal("Capital of France?", cut.Find("#question-text").TextContent.Trim());
+        Assert.Equal("1 of 2 answered", cut.Find("#answer-count").TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task Resuming_at_the_results_shows_the_leaderboard_and_the_next_button()
+    {
+        var cut = RenderLobby();
+        var results = new QuestionResults(0, 2, 0, [1, 0, 0, 0], [new Standing(1, "Ann", 990)], false);
+
+        await cut.InvokeAsync(() => _lobby.RaiseResumed(new HostSnapshot(
+            _sessionId, "654321", "Quiz", [new PlayerInfo(Guid.NewGuid(), "Ann", true)], SessionPhase.Results, OpenQuestion, Results: results)));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Single(cut.FindAll("#leaderboard tr"));
+            Assert.NotEmpty(cut.FindAll("#next-question"));
+        });
+    }
+
+    [Fact]
+    public async Task Giving_up_on_the_connection_tells_the_host_to_reload()
+    {
+        var cut = RenderLobby();
+
+        await cut.InvokeAsync(_lobby.RaiseReconnecting);
+        await cut.InvokeAsync(_lobby.RaiseConnectionLost);
+
+        cut.WaitForAssertion(() => Assert.Contains("Reload", cut.Markup));
+    }
+
     private sealed class FakeHostSessionClient : IHostSessionClient
     {
-        public HostLobbySnapshot? Snapshot { get; set; }
+        public HostSnapshot? Snapshot { get; set; }
         public Exception? ConnectError { get; set; }
 
         public event Action<PlayerInfo>? PlayerJoined;
@@ -195,6 +254,9 @@ public sealed class HostSessionTests : BunitContext
         public event Action<int, int>? AnswerCount;
         public event Action<QuestionResults>? QuestionEnded;
         public event Action<FinalResults>? Finished;
+        public event Action? Reconnecting;
+        public event Action<HostSnapshot>? Resumed;
+        public event Action? ConnectionLost;
 
         public int StartCalls { get; private set; }
         public int NextCalls { get; private set; }
@@ -217,14 +279,17 @@ public sealed class HostSessionTests : BunitContext
         public void RaiseEnded(QuestionResults r) => QuestionEnded?.Invoke(r);
         public void RaiseFinished(FinalResults f) => Finished?.Invoke(f);
 
-        public Task<HostLobbySnapshot> ConnectAsync(Guid sessionId, CancellationToken ct = default) =>
+        public Task<HostSnapshot> ConnectAsync(Guid sessionId, CancellationToken ct = default) =>
             ConnectError is not null
-                ? Task.FromException<HostLobbySnapshot>(ConnectError)
-                : Task.FromResult(Snapshot ?? new HostLobbySnapshot(sessionId, "654321", "Quiz", []));
+                ? Task.FromException<HostSnapshot>(ConnectError)
+                : Task.FromResult(Snapshot ?? new HostSnapshot(sessionId, "654321", "Quiz", []));
 
         public void RaisePlayerJoined(PlayerInfo p) => PlayerJoined?.Invoke(p);
         public void RaiseConnection(Guid id, bool connected) => PlayerConnectionChanged?.Invoke(id, connected);
         public void RaiseCancelled() => Cancelled?.Invoke();
+        public void RaiseReconnecting() => Reconnecting?.Invoke();
+        public void RaiseResumed(HostSnapshot s) => Resumed?.Invoke(s);
+        public void RaiseConnectionLost() => ConnectionLost?.Invoke();
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

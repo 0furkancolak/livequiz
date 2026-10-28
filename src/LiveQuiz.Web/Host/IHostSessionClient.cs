@@ -14,7 +14,16 @@ public interface IHostSessionClient : IAsyncDisposable
     event Action<QuestionResults>? QuestionEnded;
     event Action<FinalResults>? Finished;
 
-    Task<HostLobbySnapshot> ConnectAsync(Guid sessionId, CancellationToken ct = default);
+    /// <summary>The connection dropped; the client keeps retrying on its own.</summary>
+    event Action? Reconnecting;
+
+    /// <summary>Back online: the state of the game to redraw from.</summary>
+    event Action<HostSnapshot>? Resumed;
+
+    /// <summary>The connection could not be restored.</summary>
+    event Action? ConnectionLost;
+
+    Task<HostSnapshot> ConnectAsync(Guid sessionId, CancellationToken ct = default);
 
     Task StartGameAsync(Guid sessionId, CancellationToken ct = default);
 

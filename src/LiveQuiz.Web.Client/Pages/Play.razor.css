@@ -12,3 +12,11 @@
 .play .correct { color: #1b7f3b; }
 .play .wrong { color: #b00020; }
 #countdown { font-size: 1.5rem; font-weight: 700; }
+
+.banner {
+    margin: 0 0 1rem;
+    padding: .5rem .75rem;
+    border-radius: .5rem;
+    background: #fff3cd;
+    color: #664d03;
+}
